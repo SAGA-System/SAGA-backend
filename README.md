@@ -2,14 +2,6 @@
 
 Repositório do sistema **NewNSA**, desenvolvido em 2022 para o TCC do Ensino Médio integrado ao técnico de Desenvolvimento de Sistemas(Novotec) na ETEC Prof Eudécio Luiz Vicente. 
 
-<div align="center">
-  <img alt="GitHub language count" src="https://img.shields.io/github/languages/count/CaduZulian/NewNSA?color=%2304D361">
-  <img alt="Repository size" src="https://img.shields.io/github/repo-size/CaduZulian/NewNSA">
-  <a href="https://github.com/tgmarinho/README-ecoleta/commits/master">
-    <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/CaduZulian/NewNSA">
-  </a>
-</div>
-
 ## Pastas do sistema
 
  - Front-end (onde está armazenado todo o código do front-end)
