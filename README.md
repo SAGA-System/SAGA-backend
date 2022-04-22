@@ -46,13 +46,13 @@ $ npm start
 <tr>
 <td> 
 <div align="center">
-<img style="width: 100px; border-radius: 50%;" src="https://github.com/CaduZulian.png" alt="CaduZulian"/><br />
+<img style="width: 150px; border-radius: 50%;" src="https://github.com/CaduZulian.png" alt="CaduZulian"/><br />
 <a href="https://github.com/CaduZulian">Carlos Eduardo Zulian</a> 
 </div>  
 </td>
 <td>  
 <div align="center">
-<img style="width: 100px; border-radius: 50%;" src="https://github.com/EnzoDaun.png" alt="EnzoDaun"/><br />
+<img style="width: 150px; border-radius: 50%;" src="https://github.com/EnzoDaun.png" alt="EnzoDaun"/><br />
 <a href="https://github.com/EnzoDaun">Enzo Shimada Daun</a> 
 </div>
 </td>
