@@ -4,12 +4,14 @@ const app = express();
 // routes
 const authRoutes = require('./routes/auth')
 const institutionRoutes = require('./routes/institution')
+const classRoutes = require('./routes/class')
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json())
 
 app.use('/auth', authRoutes)
 app.use('/institution', institutionRoutes)
+app.use('/class', classRoutes)
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')

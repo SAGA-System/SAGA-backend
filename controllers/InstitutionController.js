@@ -1,84 +1,71 @@
-const axios = require('axios');
-const mysql = require('../mysql').pool;
 const logger = require('../resources/logger')
+const dataValidator = require('../resources/dataValidator')
+const initModels = require('../models/init-models')
+const db = require('../models/db')
+const models = initModels(db)
 
-exports.index = (req, res) => {
-  mysql.getConnection((err, connection) => {
-    if (err) { return res.status(500).send({ error: err }) }
+exports.index = async (req, res) => {
+  try {
     logger.info(`InstitutionController/index - list all institutions`)
 
-    connection.query(
-      "SELECT * FROM institution",
-      (err, result, fields) => {
-        if (err) {
-          logger.error(`Failed to list institutions - Error: ${err.message}`)
+    const institutions = await models.institution.findAll()
 
-          return res.status(500).send({
-            error: {
-              message: 'Ocorreu um erro interno do servidor'
-            }
-          })
+    if (institutions.length === 0) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada na plataforma'
         }
+      })
+    }
 
-        if (result.length === 0) {
-          return res.status(404).send({
-            error: {
-              message: 'Nenhuma instituição foi encontrada na plataforma'
-            }
-          })
-        }
+    res.status(200).send(institutions)
 
-        res.status(200).send(result)
-        connection.release()
+  } catch (err) {
+    logger.error(`Failed to list institutions - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
       }
-    )
-  })
+    })
+  }
 }
 
-exports.show = (req, res) => {
-  mysql.getConnection((err, connection) => {
-    if (err) { return res.status(500).send({ error: err }) }
+exports.show = async (req, res) => {
+  try {
     logger.info(`InstitutionController/show - list institution by id`)
 
     const id = req.params.id
-    
-    connection.query(
-      `SELECT * FROM institution WHERE id = ?`,
-      [id],
-      (err, result, fields) => {
-        if (err) {
-          logger.error(`Failed to list institution by id ${id} - Error: ${err.message}`)
 
-          return res.status(500).send({
-            error: {
-              message: 'Ocorreu um erro interno do servidor'
-            }
-          })
-        }
+    const institution = await models.institution.findOne({ where: { id: id } })
 
-        if (result.length === 0) {
-          return res.status(404).send({
-            institutionExists: false,
-            error: {
-              message: 'Nenhuma instituição foi encontrada. Verifique as informações e tente novamente'
-            }
-          })
+    if (!institution) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada. Verifique as informações e tente novamente'
         }
-        
-        res.status(200).send({
-          institutionExists: true,
-          result
-        })
-        connection.release()
+      })
+    }
+
+    res.status(200).send(
+      institution
+    )
+
+  } catch (err) {
+    logger.error(`Failed to list institution by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
       }
-      )
-  })
+    })
+  }
 }
 
-exports.store = (req, res) => {
-  mysql.getConnection((err, connection) => {
-    if (err) { return res.status(500).send({ error: err }) }
+exports.store = async (req, res) => {
+  try {
     logger.info(`InstitutionController/store - create institution`)
+
     let {
       name,
       cnpj,
@@ -91,125 +78,79 @@ exports.store = (req, res) => {
       city
     } = req.body
 
-    const response = req.body
+    let findForCNPJ
 
-    let isCreated
+    try {
+      findForCNPJ = await models.institution.findAll({ where: { cnpj: cnpj } })
+    } catch (err) {
+      logger.error(`Failed to find institution by cnpj ${cnpj} - Error: ${err.message}`)
 
-    function validateCNPJ(cnpj) {
-      cnpj = cnpj.replace(/[^\d]+/g, '');
-
-      if (cnpj == '') return false;
-
-      if (cnpj.length != 14)
-        return false;
-
-      // Elimina CNPJs invalidos conhecidos
-      if (cnpj == "00000000000000" ||
-        cnpj == "11111111111111" ||
-        cnpj == "22222222222222" ||
-        cnpj == "33333333333333" ||
-        cnpj == "44444444444444" ||
-        cnpj == "55555555555555" ||
-        cnpj == "66666666666666" ||
-        cnpj == "77777777777777" ||
-        cnpj == "88888888888888" ||
-        cnpj == "99999999999999")
-        return false;
-
-      // Valida DVs
-      size = cnpj.length - 2
-      numbers = cnpj.substring(0, size);
-      digits = cnpj.substring(size);
-      sum = 0;
-      pos = size - 7;
-      for (i = size; i >= 1; i--) {
-        sum += numbers.charAt(size - i) * pos--;
-        if (pos < 2)
-          pos = 9;
-      }
-      result = sum % 11 < 2 ? 0 : 11 - sum % 11;
-      if (result != digits.charAt(0))
-        return false;
-
-      size = size + 1;
-      numbers = cnpj.substring(0, size);
-      sum = 0;
-      pos = size - 7;
-      for (i = size; i >= 1; i--) {
-        sum += numbers.charAt(size - i) * pos--;
-        if (pos < 2)
-          pos = 9;
-      }
-      result = sum % 11 < 2 ? 0 : 11 - sum % 11;
-      if (result != digits.charAt(1))
-        return false;
-
-      return true;
+      return res.status(500).send({
+        error: {
+          message: 'Ocorreu um erro interno do servidor'
+        }
+      })
     }
 
-    connection.query(
-      `SELECT * FROM institution WHERE cnpj = ?`,
-      [cnpj],
-      (err, result, fields) => {
-        if (err) {
-          logger.error(`Failed to find institution by cnpj ${cnpj} - Error: ${err.message}`)
+    const isCreated = findForCNPJ.length !== 0 ? true : false;
 
-          return res.status(500).send({
-            error: {
-              message: 'Ocorreu um erro interno do servidor'
-            }
+    if (dataValidator.validateCNPJ(cnpj)) {
+      if (!isCreated) {
+        const institution = await models.institution.create(complement ?
+          {
+            name: name,
+            cnpj: cnpj,
+            courses: courses,
+            phone: phone,
+            street: street,
+            number: number,
+            district: district,
+            complement: complement,
+            city: city
+          } : {
+            name: name,
+            cnpj: cnpj,
+            courses: courses,
+            phone: phone,
+            street: street,
+            number: number,
+            district: district,
+            city: city
           })
-        }
-        result.length !== 0 ? isCreated = true : isCreated = false;
-        connection.release()
-      }
-    )
 
-    if (!isCreated) {
-      if (validateCNPJ(cnpj)) {
-        connection.query(
-          `INSERT INTO institution (name, cnpj, courses, phone, street, number, district, ${!complement ? '' : 'complement,'} city) VALUES (?,?,?,?,?,?,?,${!complement ? '' : '?,'}?)`,
-          complement ?
-            [name, cnpj, JSON.stringify(courses), phone, street, number, district, complement, city] :
-            [name, cnpj, JSON.stringify(courses), phone, street, number, district, city],
-          (err, result, fields) => {
-            if (err) {
-              logger.error(`Failed to create institution - Error: ${err.message}`)
-
-              return res.status(500).send({
-                error: {
-                  message: 'Ocorreu um erro interno do servidor'
-                }
-              })
-            }
-
-            res.status(201).send({
-              message: 'Instituição criada com sucesso',
-              response
-            })
-            connection.release()
-          }
-        )
+        res.status(201).send({
+          message: 'Instituição criada com sucesso',
+          institution
+        })
       } else {
-        res.status(400).send({
+        res.status(409).send({
           error: {
-            message: 'CNPJ inválido',
+            message: 'CNPJ da instituição já presente no banco',
           }
         })
       }
     } else {
-      res.status(409).send({
-        message: 'Nome da instituição já presente no banco',
+      res.status(400).send({
+        error: {
+          message: 'CNPJ inválido',
+        }
       })
     }
-  })
+
+  } catch (err) {
+    logger.error(`Failed to create institution - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
 }
 
-exports.update = (req, res) => {
-  mysql.getConnection(async (err, connection) => {
-    if (err) { return res.status(500).send({ error: err }) }
-    logger.info(`InstitutionController/update - update institution by id`)
-    
+exports.update = async (req, res) => {
+  try {
+    logger.info(`InstitutionController/update - update institution`)
     const id = req.params.id
 
     const {
@@ -224,38 +165,37 @@ exports.update = (req, res) => {
       city
     } = req.body
 
-    const response = req.body
+    let findForId
 
-    let institutionExists;
+    try {
+      findForId = await models.institution.findAll({ where: { id: id } })
+    } catch (err) {
+      logger.error(`Failed to find institution by id ${id} - Error: ${err.message}`)
 
-    await axios({
-      method: 'GET',
-      url: `${process.env.URL_SELECT_INSTITUTION}/${id}`
-    }).then(response => {
-      institutionExists = response.data.institutionExists
-    }).catch(err => { logger.error(err.message) });
+      return res.status(500).send({
+        error: {
+          message: 'Ocorreu um erro interno do servidor'
+        }
+      })
+    }
+
+    const institutionExists = findForId.length !== 0 ? true : false;
 
     if (institutionExists) {
-      connection.query(
-        `UPDATE institution SET name = ?, cnpj = ?, courses = ?, phone = ?, street = ?, number = ?, district = ?, ${complement ? 'complement = ?,' : ''} city = ? WHERE id = ${id}`,
-        complement ?
-          [name, cnpj, JSON.stringify(courses), phone, street, number, district, complement, city] :
-          [name, cnpj, JSON.stringify(courses), phone, street, number, district, city],
-        (err, result, fields) => {
-          if (err) {
-            logger.error(`Failed to update institution by id ${id} - Error: ${err.message}`)
+      await models.institution.update({
+        name: name,
+        cnpj: cnpj,
+        courses: courses,
+        phone: phone,
+        street: street,
+        number: number,
+        district: district,
+        complement: complement,
+        city: city
+      }, { where: { id: id } })
 
-            return res.status(500).send({
-              error: {
-                message: 'Ocorreu um erro interno do servidor'
-              }
-            })
-          }
+      res.status(200).send(await models.institution.findOne({ where: { id: id } }))
 
-          res.status(200).send(response)
-          connection.release()
-        }
-      )
     } else {
       logger.error(`Failed to update institution by id ${id} - Error: Institution not exist`)
 
@@ -265,44 +205,43 @@ exports.update = (req, res) => {
         }
       })
     }
-  })
+  } catch (err) {
+    logger.error(`Failed to update institution by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
 }
 
-exports.destroy = (req, res) => {
-  mysql.getConnection(async (err, connection) => {
-    if (err) { return res.status(500).send({ error: err }) }
-    logger.info(`InstitutionController/delete - delete institution by id`)
-
+exports.destroy = async (req, res) => {
+  try {
+    logger.info(`InstitutionController/destroy - delete institution`)
     const id = req.params.id;
-    let institutionExists;
+    let findForId
 
-    await axios({
-      method: 'GET',
-      url: `${process.env.URL_SELECT_INSTITUTION}/${id}`
-    }).then(response => {
-      institutionExists = response.data.institutionExists
-    }).catch(err => { logger.error(err.message) });
+    try {
+      findForId = await models.institution.findAll({ where: { id: id } })
+    } catch (err) {
+      logger.error(`Failed to find institution by id ${id} - Error: ${err.message}`)
+
+      return res.status(500).send({
+        error: {
+          message: 'Ocorreu um erro interno do servidor'
+        }
+      })
+    }
+
+    const institutionExists = findForId.length !== 0 ? true : false;
 
     if (institutionExists) {
-      connection.query(
-        `DELETE FROM institution WHERE id = ${id}`,
-        (err, result, fields) => {
-          if (err) {
-            logger.error(`Failed to delete institution by id ${id} - Error: ${err.message}`)
+      await models.institution.destroy({ where: { id: id } })
 
-            return res.status(500).send({
-              error: {
-                message: 'Ocorreu um erro interno do servidor'
-              }
-            })
-          }
-
-          res.status(200).send({
-            message: 'Instituição deletada com sucesso'
-          })
-          connection.release()
-        }
-      )
+      res.status(200).send({
+        message: 'Instituição deletada com sucesso'
+      })
     } else {
       return res.status(404).send({
         error: {
@@ -310,5 +249,13 @@ exports.destroy = (req, res) => {
         }
       })
     }
-  })
+  } catch (err) {
+    logger.error(`Failed to delete institution by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
 }
