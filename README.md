@@ -1,6 +1,6 @@
 # NewNSA
 
-Repositório do sistema **NewNSA**, desenvolvido em 2022 para o TCC do Ensino Médio integrado ao técnico de Desenvolvimento de Sistemas(Novotec) na ETEC Prof Eudécio Luiz Vicente. 
+Repositório da aplicação **Backend** do sistema **NewNSA**, desenvolvido em 2022 para o TCC do Ensino Médio integrado ao técnico de Desenvolvimento de Sistemas(Novotec) na ETEC Prof Eudécio Luiz Vicente. 
 
 ## Bibliotecas utilizadas
 
