@@ -2,14 +2,8 @@
 
 Repositório do sistema **NewNSA**, desenvolvido em 2022 para o TCC do Ensino Médio integrado ao técnico de Desenvolvimento de Sistemas(Novotec) na ETEC Prof Eudécio Luiz Vicente. 
 
-## Pastas do sistema
-
- - Front-end (onde está armazenado todo o código do front-end)
- - Back-end (onde está armazenado todo o código do back-end)
-
 ## Bibliotecas utilizadas
-#### Front-end:
-#### back-end:  
+
 - **[NodeJS](https://nodejs.org/en/)**
 - **[Express](https://expressjs.com/)**
 - **[CORS](https://expressjs.com/en/resources/middleware/cors.html)**
@@ -49,12 +43,6 @@ $ npm start
 <img style="width: 150px; border-radius: 50%;" src="https://github.com/CaduZulian.png" alt="CaduZulian"/><br />
 <a href="https://github.com/CaduZulian">Carlos Eduardo Zulian</a> 
 </div>  
-</td>
-<td>  
-<div align="center">
-<img style="width: 150px; border-radius: 50%;" src="https://github.com/EnzoDaun.png" alt="EnzoDaun"/><br />
-<a href="https://github.com/EnzoDaun">Enzo Shimada Daun</a> 
-</div>
 </td>
 </tr>
 </table>
