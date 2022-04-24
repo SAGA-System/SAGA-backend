@@ -1,4 +1,4 @@
-const mysql = require('../mysql').pool;
+const mysql = require('../../mysql').pool;
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const logger = require('../resources/logger')

@@ -2,9 +2,9 @@ const express = require('express');
 const app = express();
 
 // routes
-const authRoutes = require('./routes/auth')
-const institutionRoutes = require('./routes/institution')
-const classRoutes = require('./routes/class')
+const authRoutes = require('./src/routes/auth')
+const institutionRoutes = require('./src/routes/institution')
+const classRoutes = require('./src/routes/class')
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json())
