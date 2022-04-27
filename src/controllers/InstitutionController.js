@@ -69,7 +69,6 @@ exports.store = async (req, res) => {
     let {
       name,
       cnpj,
-      courses,
       phone,
       street,
       number,
@@ -78,45 +77,21 @@ exports.store = async (req, res) => {
       city
     } = req.body
 
-    let findForCNPJ
-
-    try {
-      findForCNPJ = await models.institution.findAll({ where: { cnpj: cnpj } })
-    } catch (err) {
-      logger.error(`Failed to find institution by cnpj ${cnpj} - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
-
-    const isCreated = findForCNPJ.length !== 0 ? true : false;
+    const findForCNPJ = await models.institution.findAll({ where: { cnpj: cnpj } })
 
     if (dataValidator.validateCNPJ(cnpj)) {
-      if (!isCreated) {
-        const institution = await models.institution.create(complement ?
-          {
-            name: name,
-            cnpj: cnpj,
-            courses: courses,
-            phone: phone,
-            street: street,
-            number: number,
-            district: district,
-            complement: complement,
-            city: city
-          } : {
-            name: name,
-            cnpj: cnpj,
-            courses: courses,
-            phone: phone,
-            street: street,
-            number: number,
-            district: district,
-            city: city
-          })
+      if (findForCNPJ.length === 0) {
+        const institution = await models.institution.create({
+          name: name,
+          cnpj: cnpj,
+          phone: phone,
+          courses: [],
+          street: street,
+          number: number,
+          district: district,
+          complement: complement,
+          city: city
+        })
 
         res.status(201).send({
           message: 'Instituição criada com sucesso',
@@ -156,7 +131,6 @@ exports.update = async (req, res) => {
     const {
       name,
       cnpj,
-      courses,
       phone,
       street,
       number,
@@ -165,27 +139,12 @@ exports.update = async (req, res) => {
       city
     } = req.body
 
-    let findForId
+    const findForId = await models.institution.findAll({ where: { id: id } })
 
-    try {
-      findForId = await models.institution.findAll({ where: { id: id } })
-    } catch (err) {
-      logger.error(`Failed to find institution by id ${id} - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
-
-    const institutionExists = findForId.length !== 0 ? true : false;
-
-    if (institutionExists) {
+    if (findForId.length !== 0) {
       await models.institution.update({
         name: name,
         cnpj: cnpj,
-        courses: courses,
         phone: phone,
         street: street,
         number: number,
@@ -220,19 +179,8 @@ exports.destroy = async (req, res) => {
   try {
     logger.info(`InstitutionController/destroy - delete institution`)
     const id = req.params.id;
-    let findForId
 
-    try {
-      findForId = await models.institution.findAll({ where: { id: id } })
-    } catch (err) {
-      logger.error(`Failed to find institution by id ${id} - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findForId = await models.institution.findAll({ where: { id: id } })
 
     const institutionExists = findForId.length !== 0 ? true : false;
 
@@ -251,6 +199,203 @@ exports.destroy = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to delete institution by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.addCourses = async (req, res) => {
+  try {
+    logger.info(`InstitutionController/addCourses - add courses to existing institution`)
+
+    const id = req.params.id
+    const { courses } = req.body
+
+    const findInstitution = await models.institution.findOne({ where: { id: id } })
+
+    if (!courses.name || !courses.lessonsPerDay || !courses.period || !courses.classTheme) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    }
+
+    let lessons = {
+      Monday: {},
+      Tuesday: {},
+      Wednesday: {},
+      Thursday: {},
+      Friday: {},
+      Saturday: {},
+    }
+    
+    for (let i = 0; i < courses.lessonsPerDay; i++) {
+      lessons.Monday[i + 1] = ""
+      lessons.Tuesday[i + 1] = ""
+      lessons.Wednesday[i + 1] = ""
+      lessons.Thursday[i + 1] = ""
+      lessons.Friday[i + 1] = ""
+      lessons.Saturday[i + 1] = ""
+    }
+
+    Object.assign(courses, {lessons: lessons});
+
+    if (findInstitution) {
+      let courseExistsInInstitution = false
+
+      for (let i = 0; i < findInstitution.courses.length; i++) {
+        if (
+          (findInstitution.courses[i].name === courses.name) &&
+          (findInstitution.courses[i].period === courses.period) &&
+          (Object.values(findInstitution.courses[i].lessons.Monday).length === courses.lessonsPerDay) &&
+          (JSON.stringify(findInstitution.courses[i].classTheme) === JSON.stringify(courses.classTheme))
+        ) {
+          courseExistsInInstitution = true
+        }
+      }
+
+      if (!courseExistsInInstitution) {
+        delete courses.lessonsPerDay
+        findInstitution.courses.push(courses)
+
+        await models.institution.update({
+          courses: findInstitution.courses,
+        }, { where: { id: id } })
+
+        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+      } else {
+        res.status(409).send({
+          error: {
+            message: 'Já existe um curso nessa instituição com as informações fornecidas',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada. Não foi possível concluir o cadastro',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to add courses in institution - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.updateCourse = async (req, res) => {
+  try {
+    logger.info(`ClassController/updateTeacher - update a teacher from an existing class`)
+
+    const id = req.params.id
+    const indexCourse = req.params.indexCourse
+
+    const { course } = req.body
+
+    const findInstitution = await models.institution.findOne({ where: { id: id } })
+
+    if (findInstitution) {
+      if (findInstitution.courses.filter((_, index) => index === Number(indexCourse)).length !== 0) {
+        const coursesUpdated = findInstitution.courses.map(({ classTheme, name, lessons, period }, index) => {
+          return index === Number(indexCourse) ? {
+            lessons,
+            name: (course.name) && (name !== course.name) ? course.name : name,
+            period: (course.period) && (period !== course.period) ? course.period : period,
+            classTheme: (course.classTheme) && (JSON.stringify(classTheme) !== JSON.stringify(course.classTheme)) ? course.classTheme : classTheme
+          } : {
+            name,
+            period,
+            lessons,
+            classTheme
+          }
+        })
+
+        await models.institution.update({
+          courses: coursesUpdated,
+        }, { where: { id: id } })
+
+        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+      } else {
+        res.status(404).send({
+          error: {
+            message: 'Não existe um curso nessa instituição com as credenciais informadas',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada. Não foi possível concluir a atualização',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to update courses in institution - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.deleteCourse = async (req, res) => {
+  try {
+    logger.info(`ClassController/deleteTeacher - delete a teacher from an existing class`)
+
+    const id = req.params.id
+    const indexCourse = req.params.indexCourse
+
+    const findInstitution = await models.institution.findOne({ where: { id: id } })
+
+    if (findInstitution) {
+      let courseExists = {
+        value: false,
+        index: null
+      }
+
+      if(findInstitution.courses.filter((_, index) => index === Number(indexCourse)).length !== 0) {
+        courseExists = {
+          value: true,
+          index: indexCourse
+        }
+      }
+
+      if (courseExists.value) {
+        const coursesUpdated = findInstitution.courses.filter((_, index) => index !== Number(indexCourse))
+
+        await models.institution.update({
+          courses: coursesUpdated,
+        }, { where: { id: id } })
+
+        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+      } else {
+        res.status(404).send({
+          error: {
+            message: 'Curso não encontrado ou já deletado',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada. Não foi possível concluir a remoção',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to delete class by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

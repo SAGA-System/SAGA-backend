@@ -2,6 +2,8 @@ const logger = require('../resources/logger')
 const initModels = require('../models/init-models')
 const db = require('../models/db')
 const models = initModels(db)
+const jwt = require('jsonwebtoken')
+const normalizer = require('../resources/normalizer')
 
 exports.index = async (req, res) => {
   try {
@@ -73,6 +75,12 @@ exports.store = async (req, res) => {
       classTheme
     } = req.body
 
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution}})
+
     if (!period || !course || !schoolYear || !teachers || !students || !lessons || !block || !classNumber || !classTheme) {
       return res.status(400).send({
         error: {
@@ -81,45 +89,41 @@ exports.store = async (req, res) => {
       })
     }
 
-    let findClasses
-
-    try {
-      findClasses = await models.class_.findAll({
-        where: {
-          period: period,
-          block: block,
-          classNumber: classNumber
-        }
-      })
-    } catch (err) {
-      logger.error(`Failed to check if the class is available - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
-
-    const classIsAvailable = findClasses.length === 0 ? true : false;
-
-    if (classIsAvailable) {
-      const newClass = await models.class_.create({
+    const findClasses = await models.class_.findAll({
+      where: {
         period: period,
-        course: course,
-        schoolYear: schoolYear,
-        teachers: teachers,
-        students: students,
-        lessons: lessons,
         block: block,
-        classNumber: classNumber,
-        classTheme: classTheme
-      })
+        classNumber: classNumber
+      }
+    })
 
-      res.status(201).send({
-        message: 'Instituição criada com sucesso',
-        newClass
-      })
+    if (findClasses.length === 0) {
+      const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
+      
+      if(period.toLowerCase() === courseData[0].period.toLowerCase()) {
+        const newClass = await models.class_.create({
+          period: period,
+          course: course,
+          schoolYear: schoolYear,
+          teachers: [],
+          students: [],
+          lessons: courseData[0].lessons,
+          block: block,
+          classNumber: classNumber,
+          classTheme: courseData[0].classTheme
+        })
+  
+        res.status(201).send({
+          message: 'Classe criada com sucesso',
+          newClass
+        })
+      } else {
+        res.status(409).send({
+          error: {
+            message: 'Não existe modalidade do curso no turno solicitado',
+          }
+        })
+      }
     } else {
       res.status(409).send({
         error: {
@@ -127,7 +131,6 @@ exports.store = async (req, res) => {
         }
       })
     }
-
   } catch (err) {
     logger.error(`Failed to create class - Error: ${err.message}`)
 
@@ -149,39 +152,19 @@ exports.update = async (req, res) => {
       period,
       course,
       schoolYear,
-      teachers,
-      students,
-      lessons,
       block,
-      classNumber,
-      classTheme
+      classNumber
     } = req.body
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findAll({ where: { id: id } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findAll({ where: { id: id } })
 
     if (findClass.length !== 0) {
       await models.class_.update({
         period: period,
         course: course,
         schoolYear: schoolYear,
-        teachers: teachers,
-        students: students,
-        lessons: lessons,
         block: block,
         classNumber: classNumber,
-        classTheme: classTheme
       }, {
         where: {
           id: id
@@ -213,19 +196,7 @@ exports.destroy = async (req, res) => {
 
     const id = req.params.id
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findAll({ where: { id: id } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findAll({ where: { id: id } })
 
     if (findClass.length !== 0) {
       await models.class_.destroy({ where: { id: id } })
@@ -254,27 +225,16 @@ exports.destroy = async (req, res) => {
 exports.addStudents = async (req, res) => {
   try {
     logger.info(`ClassController/addStudents - add Students To Existing Class`)
+
     const idClass = req.params.idClass
     const { students } = req.body
 
-    let findClass
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (!students.name || (!students.id && typeof students.id === 'number') || (!students.ra && typeof students.ra === 'number')) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
-        }
-      })
-    }
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
         }
       })
     }
@@ -329,22 +289,9 @@ exports.updateStudent = async (req, res) => {
     const idUser = req.params.idUser
 
     const { name, ra } = req.body
-
     const dataForUpdate = { name, ra }
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
       let studentExistsInClass = false
@@ -406,19 +353,7 @@ exports.deleteStudent = async (req, res) => {
     const idClass = req.params.idClass
     const idUser = req.params.idUser
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
       let studentExistsInClass = {
@@ -475,24 +410,12 @@ exports.addTeachers = async (req, res) => {
     const idClass = req.params.idClass
     const { teachers } = req.body
 
-    let findClass
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (!teachers.name || !teachers.id || !teachers.classTheme || !teachers.gang) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
-        }
-      })
-    }
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
         }
       })
     }
@@ -551,22 +474,9 @@ exports.updateTeacher = async (req, res) => {
     const idUser = req.params.idUser
 
     const { name, gang, classTheme } = req.body
-
     const dataForUpdate = { name, gang, classTheme }
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
       let teacherExistsInClass = false
@@ -630,19 +540,7 @@ exports.deleteTeacher = async (req, res) => {
     const idClass = req.params.idClass
     const idUser = req.params.idUser
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
       let teacherExistsInClass = {
@@ -707,72 +605,9 @@ exports.updateLessons = async (req, res) => {
       Saturday
     } = req.body
 
-    let findClass
-
-    try {
-      findClass = await models.class_.findOne({ where: { id: idClass } })
-    } catch (err) {
-      logger.error(`Failed to check if the class exists - Error: ${err.message}`)
-
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
-      /*{
-        "Monday": {
-          "1": "Desenvolvimento de sistemas",
-          "2": "Desenvolvimento de sistemas",
-          "3": "BD III",
-          "4": "BD III",
-          "5": "Artes",
-          "6": "Desenvolvimento de sistemas"
-        },
-        "Tuesday": {
-          "1": "",
-          "2": "",
-          "3": "",
-          "4": "",
-          "5": "",
-          "6": ""
-        },
-        "Wednesday": {
-          "1": "",
-          "2": "",
-          "3": "",
-          "4": "",
-          "5": "",
-          "6": ""
-        },
-        "Thursday": {
-         "1": "",
-          "2": "",
-          "3": "",
-          "4": "",
-          "5": "",
-          "6": ""
-        },
-        "Friday": {
-          "1": "",
-          "2": "",
-          "3": "",
-          "4": "",
-          "5": "",
-          "6": ""
-        },
-        "Saturday": {
-          "1": "",
-          "2": "",
-          "3": "",
-          "4": "",
-          "5": "",
-          "6": ""
-        }
-      }*/
-
       await models.class_.update({
         lessons: {
           Monday,
@@ -782,6 +617,43 @@ exports.updateLessons = async (req, res) => {
           Friday,
           Saturday
         }
+      }, { where: { id: idClass } })
+
+      res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to delete class by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.updateClassThemes = async (req, res) => {
+  try {
+    logger.info(`ClassController/addLessons - add lessons to existing class`)
+
+    const idClass = req.params.idClass
+
+    const {
+      classTheme
+    } = req.body
+
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
+
+    if (findClass) {
+      await models.class_.update({
+        classTheme: classTheme
       }, { where: { id: idClass } })
 
       res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))

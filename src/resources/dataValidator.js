@@ -20,17 +20,17 @@ exports.validateCNPJ = (cnpj) => {
     return false;
 
   // Valida DVs
-  size = cnpj.length - 2
-  numbers = cnpj.substring(0, size);
-  digits = cnpj.substring(size);
-  sum = 0;
-  pos = size - 7;
-  for (i = size; i >= 1; i--) {
+  let size = cnpj.length - 2
+  let numbers = cnpj.substring(0, size);
+  let digits = cnpj.substring(size);
+  let sum = 0;
+  let pos = size - 7;
+  for (let i = size; i >= 1; i--) {
     sum += numbers.charAt(size - i) * pos--;
     if (pos < 2)
       pos = 9;
   }
-  result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+  let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
   if (result != digits.charAt(0))
     return false;
 
@@ -38,7 +38,7 @@ exports.validateCNPJ = (cnpj) => {
   numbers = cnpj.substring(0, size);
   sum = 0;
   pos = size - 7;
-  for (i = size; i >= 1; i--) {
+  for (let i = size; i >= 1; i--) {
     sum += numbers.charAt(size - i) * pos--;
     if (pos < 2)
       pos = 9;
@@ -48,7 +48,6 @@ exports.validateCNPJ = (cnpj) => {
     return false;
 
   return true;
-
 }
 
 exports.validadeCPF = (cpf) => {
@@ -71,4 +70,22 @@ exports.validadeCPF = (cpf) => {
     index += 1
   }
   return false
+}
+
+exports.isEquivalent = (a, b) => {
+  var aProps = Object.getOwnPropertyNames(a);
+  var bProps = Object.getOwnPropertyNames(b);
+
+  if (aProps.length != bProps.length) {
+    return false;
+  }
+
+  for (var i = 0; i < aProps.length; i++) {
+    var propName = aProps[i];
+    if (a[propName] !== b[propName]) {
+      return false;
+    }
+  }
+
+  return true;
 }

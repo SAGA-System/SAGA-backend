@@ -9,4 +9,9 @@ router.post('/', login, InstitutionController.store)
 router.put('/:id', login, InstitutionController.update)
 router.delete('/:id', login, InstitutionController.destroy)
 
+//update courses column
+router.post('/addCourses/:id', login, InstitutionController.addCourses)
+router.put('/updateCourse/:id/:indexCourse', login, InstitutionController.updateCourse)
+router.delete('/deleteCourse/:id/:indexCourse', login, InstitutionController.deleteCourse)
+
 module.exports = router

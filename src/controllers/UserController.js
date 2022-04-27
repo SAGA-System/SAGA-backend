@@ -5,6 +5,7 @@ const logger = require('../resources/logger')
 const initModels = require('../models/init-models')
 const db = require('../models/db')
 const models = initModels(db)
+const normalizer = require('../resources/normalizer')
 
 exports.index = async (req, res) => {
   try {
@@ -73,23 +74,13 @@ exports.store = async (req, res) => {
     // 5 - pais
     // 6 - aluno
 
-    let findForCPF
+    rg = normalizer.removeMask(rg)
+    cpf = normalizer.removeMask(cpf)
+    phone = normalizer.removeMask(phone)
 
-    try {
-      findForCPF = await models.users.findAll({ where: { cpf: cpf } })
-    } catch (err) {
-      logger.error(`Failed to find institution by cpf ${cpf} - Error: ${err.message}`)
+    const findForCPF = await models.users.findAll({ where: { cpf: cpf } })
 
-      return res.status(500).send({
-        error: {
-          message: 'Ocorreu um erro interno do servidor'
-        }
-      })
-    }
-
-    const isCreated = findForCPF.length !== 0 ? true : false;
-
-    if(!isCreated) {
+    if(findForCPF.length === 0) {
       bcrypt.hash(password, 10, async (errBcrypt, hash) => {
         if (errBcrypt) {
           return res.status(500).send({
@@ -116,7 +107,7 @@ exports.store = async (req, res) => {
           city: city
         })
   
-        for (let i = 0; i < users.length; i++) {
+        for (let i = 0; i < user.length; i++) {
           delete user[i].dataValues.password;
         }
   
@@ -124,12 +115,17 @@ exports.store = async (req, res) => {
           message: "Usuário criado com sucesso",
           user
         })
-  
+      })
+    } else {
+      return res.status(409).send({
+        error: {
+          message: 'Já existe um usuário na plataforma com essas credenciais'
+        }
       })
     }
 
   } catch (err) {
-    logger.error(`Failed to create users - Error: ${err.message}`)
+    logger.error(`Failed to create user - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

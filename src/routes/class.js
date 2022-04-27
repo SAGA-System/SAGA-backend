@@ -20,8 +20,9 @@ router.put('/updateTeacher/:idClass/:idUser', login, ClassController.updateTeach
 router.delete('/deleteTeacher/:idClass/:idUser', login, ClassController.deleteTeacher)
 
 //update lessons column
-router.put('/updateLessons/:idClass', login, ClassController.updateLessons)
+router.post('/updateLessons/:idClass', login, ClassController.updateLessons)
 
 //update classTheme column
+router.post('/updateClassThemes/:idClass', login, ClassController.updateClassThemes)
 
 module.exports = router
