@@ -9,7 +9,7 @@
     "MYSQL_PASSWORD": "Senha2022",
     "MYSQL_DATABASE": "dbnewnsa",
     "MYSQL_HOST": "localhost",
-    "MYSQL_PORT": 3306,
+    "MYSQL_PORT": 3406,
 
     "JWT_KEY": "Senha2022",
 

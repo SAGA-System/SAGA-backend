@@ -7,6 +7,14 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
+    idInstitution: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'institution',
+        key: 'id'
+      }
+    },
     period: {
       type: DataTypes.STRING(255),
       allowNull: false
@@ -54,6 +62,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "id" },
+        ]
+      },
+      {
+        name: "Class_fk0",
+        using: "BTREE",
+        fields: [
+          { name: "idInstitution" },
         ]
       },
     ]

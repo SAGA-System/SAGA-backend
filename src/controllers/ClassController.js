@@ -8,6 +8,7 @@ const normalizer = require('../resources/normalizer')
 exports.index = async (req, res) => {
   try {
     logger.info(`ClassController/index - list all classes`)
+    //await models.class_.sync({alter: true})
 
     const classes = await models.class_.findAll()
 
@@ -102,6 +103,7 @@ exports.store = async (req, res) => {
       
       if(period.toLowerCase() === courseData[0].period.toLowerCase()) {
         const newClass = await models.class_.create({
+          idInstitution: findInstitution.id,
           period: period,
           course: course,
           schoolYear: schoolYear,
