@@ -295,7 +295,7 @@ exports.addCourses = async (req, res) => {
 
 exports.updateCourse = async (req, res) => {
   try {
-    logger.info(`ClassController/updateTeacher - update a teacher from an existing class`)
+    logger.info(`InstitutionController/updateCourse - update a course from an existing institution`)
 
     const id = req.params.id
     const indexCourse = req.params.indexCourse
@@ -352,7 +352,7 @@ exports.updateCourse = async (req, res) => {
 
 exports.deleteCourse = async (req, res) => {
   try {
-    logger.info(`ClassController/deleteTeacher - delete a teacher from an existing class`)
+    logger.info(`InstitutionController/deleteCourse - delete a course from an existing institution`)
 
     const id = req.params.id
     const indexCourse = req.params.indexCourse
@@ -395,7 +395,7 @@ exports.deleteCourse = async (req, res) => {
       })
     }
   } catch (err) {
-    logger.error(`Failed to delete class by id - Error: ${err.message}`)
+    logger.error(`Failed to delete course by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

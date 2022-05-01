@@ -3,16 +3,5 @@
   "ext": "js, ts",
   "execMap": {
     "ts": "sucrase-node server.js"
-  },
-  "env" : {
-    "MYSQL_USER": "root",
-    "MYSQL_PASSWORD": "Senha2022",
-    "MYSQL_DATABASE": "dbnewnsa",
-    "MYSQL_HOST": "localhost",
-    "MYSQL_PORT": 3406,
-
-    "JWT_KEY": "Senha2022",
-
-    "URL_SELECT_INSTITUTION": "http://localhost:3333/institution"
   }
 }

@@ -1,4 +1,3 @@
-const mysql = require('../../mysql').pool;
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const logger = require('../resources/logger')
@@ -49,7 +48,7 @@ exports.store = async (req, res) => {
       idInstitution,
       name,
       password,
-      cpf, 
+      cpf,
       rg,
       allPermissions,
       flowType,
@@ -80,7 +79,7 @@ exports.store = async (req, res) => {
 
     const findForCPF = await models.users.findAll({ where: { cpf: cpf } })
 
-    if(findForCPF.length === 0) {
+    if (findForCPF.length === 0) {
       bcrypt.hash(password, 10, async (errBcrypt, hash) => {
         if (errBcrypt) {
           return res.status(500).send({
@@ -89,7 +88,7 @@ exports.store = async (req, res) => {
             }
           })
         }
-  
+
         const user = await models.users.create({
           idInstitution: idInstitution,
           name: name,
@@ -106,11 +105,11 @@ exports.store = async (req, res) => {
           complement: complement,
           city: city
         })
-  
+
         for (let i = 0; i < user.length; i++) {
           delete user[i].dataValues.password;
         }
-  
+
         res.status(201).send({
           message: "Usuário criado com sucesso",
           user
@@ -139,47 +138,53 @@ exports.update = async (req, res) => { }
 
 exports.destroy = async (req, res) => { }
 
-exports.login = (req, res) => {
-  mysql.getConnection((err, connection) => {
-    if (err) { return res.status(500).send({ error: err }) }
+exports.login = async (req, res) => {
+  try {
+    logger.info(`UserController/login - login`)
 
     const {
       id,
       password,
     } = req.body
 
-    connection.query(
-      "SELECT * FROM users WHERE id = ?",
-      [id],
-      (err, result, fields) => {
-        if (err) { return res.status(500).send({ error: err }) }
+    const findUser = await models.users.findAll({ where: { id: id } })
 
-        if (result.length < 1) { return res.status(401).send({ message: 'Email ou senha incorretos' }) }
+    if (findUser.length === 0) {
+      return res.status(401).send({
+        error: {
+          message: 'Email ou senha incorretos'
+        }
+      })
+    }
 
-        bcrypt.compare(password, result[0].password, (err, results) => {
-          if (err) {
-            return res.status(401).send({
-              error: {
-                message: 'Falha na autenticação'
-              }
-            })
+    bcrypt.compare(password, findUser[0].password, (err, results) => {
+      if (err) {
+        return res.status(401).send({
+          error: {
+            message: 'Falha na autenticação'
           }
-          if (results) {
-            const token = jwt.sign({
-              id: result[0].id,
-            }, process.env.JWT_KEY, {
-              expiresIn: "1h"
-            })
-            return res.status(200).send({
-              message: 'Autenticado com sucesso',
-              token: token
-            })
-          }
-          return res.status(401).send({ message: 'Email ou senha incorretos' })
         })
-
-        connection.release()
       }
-    )
-  })
+      if (results) {
+        const token = jwt.sign({
+          id: findUser[0].id,
+        }, process.env.JWT_KEY, {
+          expiresIn: "1h"
+        })
+        return res.status(200).send({
+          message: 'Autenticado com sucesso',
+          token: token
+        })
+      }
+      return res.status(401).send({ message: 'Email ou senha incorretos' })
+    })
+  } catch (err) {
+    logger.error(`Failed to login user - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
 }

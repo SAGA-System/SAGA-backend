@@ -43,7 +43,7 @@ exports.show = async (req, res) => {
     if (!class_) {
       return res.status(404).send({
         error: {
-          message: 'Nenhuma instituição foi encontrada. Verifique as informações e tente novamente'
+          message: 'Nenhuma classe foi encontrada. Verifique as informações e tente novamente'
         }
       })
     }
@@ -146,7 +146,7 @@ exports.store = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    logger.info(`ClassController/show - update class by id`)
+    logger.info(`ClassController/update - update class by id`)
 
     const id = req.params.id
 
@@ -194,7 +194,7 @@ exports.update = async (req, res) => {
 
 exports.destroy = async (req, res) => {
   try {
-    logger.info(`ClassController/show - delete class by id`)
+    logger.info(`ClassController/destroy - delete class by id`)
 
     const id = req.params.id
 
