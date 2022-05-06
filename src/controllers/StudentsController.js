@@ -162,52 +162,57 @@ exports.destroy = async (req, res) => {
   }
 }
 
-exports.addLessons = async (req, res) => {
+exports.updateFrequency = async (req, res) => {
   try {
-    logger.info(`studentsController/addLessons - add lessons to existing teacher`)
+    logger.info(`studentsController/frequency - making the school call`)
 
     const id = req.params.id
-    const { lessons } = req.body
+    const { frequency } = req.body
 
     const findStudent = await models.students.findOne({ where: { id: id } })
 
-    if (!lessons.classTheme || !lessons.horary || !lessons.classroom || !lessons.day) {
+    if (!frequency.classTheme || !frequency.classGiven || !frequency.absence) {
       return res.status(400).send({
         error: {
-          message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
+          message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
         }
       })
     }
 
     if (findStudent) {
-      const lessonExists = findStudent.lessons.filter(item =>
-        (item.horary === lessons.horary) && (item.day === lessons.day)
-      ).length === 0 ? false : true
+      const classThemeFrequency = findStudent.frequency.filter(item =>
+        (item.classTheme === frequency.classTheme)
+      )
 
-      if (!lessonExists) {
-        findStudent.lessons.push(lessons)
+      if (classThemeFrequency) {
+        classThemeFrequency.classGiven += frequency.classGiven
+        classThemeFrequency.absence += frequency.absence
+
+        const updatedFrequency = findStudent.frequency.map(item => {
+          item.classTheme === classThemeFrequency.classTheme ? classThemeFrequency : item
+        })
 
         await models.students.update({
-          lessons: findStudent.lessons,
+          frequency: updatedFrequency,
         }, { where: { id: id } })
 
         res.status(200).send(await models.students.findOne({ where: { id: id } }))
       } else {
         res.status(409).send({
           error: {
-            message: 'Esse professor já possui uma aula no horário e dia informados',
+            message: 'Essa matéria não existe para esse aluno',
           }
         })
       }
     } else {
       res.status(404).send({
         error: {
-          message: 'Nenhum professor foi encontrado. Não foi possível concluir o cadastro',
+          message: 'Nenhum aluno foi encontrado. Não foi possível concluir a chamada',
         }
       })
     }
   } catch (err) {
-    logger.error(`Failed to add lessons in students - Error: ${err.message}`)
+    logger.error(`Failed to update frequency in students - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
