@@ -6,7 +6,7 @@ const authRoutes = require('./src/routes/auth')
 const institutionRoutes = require('./src/routes/institution')
 const classRoutes = require('./src/routes/class')
 const teachersRoutes = require('./src/routes/teachers')
-const studentRoutes = require('./src/routes/student')
+const studentRoutes = require('./src/routes/students')
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json())

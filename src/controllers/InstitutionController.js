@@ -233,7 +233,7 @@ exports.addCourses = async (req, res) => {
       Friday: {},
       Saturday: {},
     }
-    
+
     for (let i = 0; i < courses.lessonsPerDay; i++) {
       lessons.Monday[i + 1] = ""
       lessons.Tuesday[i + 1] = ""
@@ -252,8 +252,7 @@ exports.addCourses = async (req, res) => {
         if (
           (findInstitution.courses[i].name === courses.name) &&
           (findInstitution.courses[i].period === courses.period) &&
-          (Object.values(findInstitution.courses[i].lessons.Monday).length === courses.lessonsPerDay) &&
-          (JSON.stringify(findInstitution.courses[i].classTheme) === JSON.stringify(courses.classTheme))
+          (Object.values(findInstitution.courses[i].lessons.Monday).length === courses.lessonsPerDay)
         ) {
           courseExistsInInstitution = true
         }

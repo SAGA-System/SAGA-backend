@@ -1,6 +1,7 @@
 const logger = require('../resources/logger')
 const initModels = require('../models/init-models')
 const db = require('../models/db')
+const normalizer = require('../resources/normalizer')
 const models = initModels(db)
 
 exports.index = async (req, res) => {
@@ -62,16 +63,17 @@ exports.store = async (req, res) => {
   try {
     logger.info(`studentsController/store - create student`)
 
-    const {
+    let {
       idUser,
       idClass,
       ra,
       schoolYear,
       situation,
-      gang,
     } = req.body
 
-    if (!idUser || !idClass || !ra || !schoolYear || !situation || !gang) {
+    ra = normalizer.removeMask(ra)
+
+    if (!idUser || !idClass || !ra || !schoolYear || !situation) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -79,23 +81,48 @@ exports.store = async (req, res) => {
       })
     }
 
-    const newStudent = await models.students.create({
-      idUser: idUser,
-      idClass: idClass,
-      ra: ra,
-      schoolYear: schoolYear,
-      situation: situation,
-      gang: gang,
-      frequency: []
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
+
+    let modifyCourses
+    modifyCourses = findClass.classTheme.map(({ name, totalClasses }) => {
+      return {
+        name,
+        totalClasses,
+        classesGiven: 0,
+        absence: 0
+      }
     })
 
-    res.status(201).send({
-      message: 'Estudante criado com sucesso',
-      newStudent
-    })
+    Object.assign(findClass, { classTheme: modifyCourses });
+
+    const studentExists = await models.students.findAll({ where: { ra: ra } })
+
+    if (studentExists.length === 0) {
+      const newStudent = await models.students.create({
+        idUser: idUser,
+        idClass: idClass,
+        ra: ra,
+        schoolYear: schoolYear,
+        situation: situation,
+        gang: '',
+        frequency: findClass.classTheme
+      })
+
+      res.status(201).send({
+        message: 'Estudante criado com sucesso',
+        newStudent
+      })
+    } else {
+      return res.status(409).send({
+        error: {
+          message: 'Já existe um usuário na plataforma com o ra informado'
+        }
+      })
+    }
 
   } catch (err) {
     logger.error(`Failed to create student - Error: ${err.message}`)
+    console.log(err)
 
     return res.status(500).send({
       error: {
@@ -164,7 +191,7 @@ exports.destroy = async (req, res) => {
 
 exports.updateFrequency = async (req, res) => {
   try {
-    logger.info(`studentsController/frequency - making the school call`)
+    logger.info(`studentsController/updateFrequency - making the school call`)
 
     const id = req.params.id
     const { frequency } = req.body
@@ -213,121 +240,6 @@ exports.updateFrequency = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update frequency in students - Error: ${err.message}`)
-
-    return res.status(500).send({
-      error: {
-        message: 'Ocorreu um erro interno do servidor'
-      }
-    })
-  }
-}
-
-exports.updateLessons = async (req, res) => {
-  try {
-    logger.info(`studentsController/updateLessons - update a lesson from an existing teacher`)
-
-    const id = req.params.id
-    const { horaryParams, dayParams } = req.params
-
-    const { lesson } = req.body
-
-    const findStudent = await models.students.findOne({ where: { id: id } })
-
-    if (findStudent) {
-      if (findStudent.lessons.filter(({ horary, day }) => horary === horaryParams && day === dayParams).length !== 0) {
-        const lessonsUpdated = findStudent.lessons.map(({ classTheme, classroom, horary, day }) => {
-          return horary === horaryParams && day === dayParams ? {
-            classTheme: (lesson.classTheme) && (classTheme !== lesson.classTheme) ? lesson.classTheme : classTheme,
-            classroom: (lesson.classroom) && (classroom !== lesson.classroom) ? lesson.classroom : classroom,
-            horary: (lesson.horary) && (horary !== lesson.horary) ? lesson.horary : horary,
-            day: (lesson.day) && (day !== lesson.day) ? lesson.day : day
-          } : {
-            classTheme,
-            classroom,
-            horary,
-            day
-          }
-        })
-
-        await models.students.update({
-          lessons: lessonsUpdated,
-        }, { where: { id: id } })
-
-        res.status(200).send(await models.students.findOne({ where: { id: id } }))
-      } else {
-        res.status(404).send({
-          error: {
-            message: 'Não existe uma aula com esse professor com as credenciais informadas',
-          }
-        })
-      }
-    } else {
-      res.status(404).send({
-        error: {
-          message: 'Nenhum professor foi encontrado. Não foi possível concluir a atualização',
-        }
-      })
-    }
-  } catch (err) {
-    logger.error(`Failed to update lessons in students - Error: ${err.message}`)
-    console.log(err)
-
-    return res.status(500).send({
-      error: {
-        message: 'Ocorreu um erro interno do servidor'
-      }
-    })
-  }
-}
-
-exports.deleteLessons = async (req, res) => {
-  try {
-    logger.info(`studentsController/deleteLessons - delete a lesson from an existing teacher`)
-
-    const id = req.params.id
-    const { horaryParams, dayParams } = req.params
-
-    const findStudent = await models.students.findOne({ where: { id: id } })
-
-    if (findStudent) {
-      let lessonExists = {
-        value: false,
-        horary: null,
-        day: null
-      }
-
-      if (findStudent.lessons.filter(({ horary, day }) => horary === horaryParams && day === dayParams).length !== 0) {
-        lessonExists = {
-          value: true,
-          horary: horaryParams,
-          day: dayParams
-        }
-      }
-
-      if (lessonExists.value) {
-        const lessonsUpdated = findStudent.lessons.filter(({ horary, day }) => horary !== horaryParams && day !== dayParams)
-
-        await models.students.update({
-          lessons: lessonsUpdated,
-        }, { where: { id: id } })
-
-        res.status(200).send(await models.students.findOne({ where: { id: id } }))
-      } else {
-        res.status(404).send({
-          error: {
-            message: 'Aula não encontrada ou já deletada',
-          }
-        })
-      }
-    } else {
-      res.status(404).send({
-        error: {
-          message: 'Nenhum professor foi encontrado. Não foi possível concluir a remoção',
-        }
-      })
-    }
-  } catch (err) {
-    logger.error(`Failed to delete lessons by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

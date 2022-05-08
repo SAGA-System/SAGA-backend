@@ -1,14 +1,17 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const axios = require('axios')
+
 const logger = require('../resources/logger')
+const normalizer = require('../resources/normalizer')
+const dataValidator = require('../resources/dataValidator')
+
 const initModels = require('../models/init-models')
 const db = require('../models/db')
 const models = initModels(db)
-const normalizer = require('../resources/normalizer')
 
 exports.index = async (req, res) => {
   try {
-    //await models.users.sync({alter: true})
     logger.info(`UserController/index - list all institutions`)
 
     const users = await models.users.findAll()
@@ -58,11 +61,14 @@ exports.store = async (req, res) => {
       number,
       district,
       complement,
-      city
-      //for students
-
+      city,
       //for teachers
-
+      speciality,
+      //for students
+      idClass,
+      ra,
+      schoolYear,
+      situation,
     } = req.body
 
     // criação do usuário - flowType
@@ -73,48 +79,120 @@ exports.store = async (req, res) => {
     // 5 - pais
     // 6 - aluno
 
+    if (!idInstitution || !name || !password || !cpf || !rg || !allPermissions ||
+      !flowType || !email || !phone || !street || !number || !district || !city ||
+      flowType === 4 && (!speciality) || flowType === 6 && (!idClass || !ra || !schoolYear || !situation)) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    }
+
+    //normalize data
     rg = normalizer.removeMask(rg)
     cpf = normalizer.removeMask(cpf)
     phone = normalizer.removeMask(phone)
 
+    if(ra) {
+      ra = normalizer.removeMask(ra)
+    }
+
+    const token = req.headers.authorization
+
     const findForCPF = await models.users.findAll({ where: { cpf: cpf } })
+    const findForEmail = await models.users.findAll({ where: { email: email } })
 
-    if (findForCPF.length === 0) {
-      bcrypt.hash(password, 10, async (errBcrypt, hash) => {
-        if (errBcrypt) {
-          return res.status(500).send({
-            error: {
-              message: errBcrypt
-            }
+    if (findForCPF.length === 0 && findForEmail.length === 0) {
+      if(dataValidator.validateCPF(cpf)) {
+        bcrypt.hash(password, 10, async (errBcrypt, hash) => {
+          if (errBcrypt) {
+            return res.status(500).send({
+              error: {
+                message: errBcrypt
+              }
+            })
+          }
+  
+          const user = await models.users.create({
+            idInstitution: idInstitution,
+            name: name,
+            password: hash,
+            cpf: cpf,
+            rg: rg,
+            allPermissions: allPermissions,
+            flowType: flowType,
+            email: email,
+            phone: phone,
+            street: street,
+            number: number,
+            district: district,
+            complement: complement,
+            city: city
           })
-        }
+  
+          delete user.dataValues.password;
 
-        const user = await models.users.create({
-          idInstitution: idInstitution,
-          name: name,
-          password: hash,
-          cpf: cpf,
-          rg: rg,
-          allPermissions: allPermissions,
-          flowType: flowType,
-          email: email,
-          phone: phone,
-          street: street,
-          number: number,
-          district: district,
-          complement: complement,
-          city: city
+          try {
+            if (flowType === 4) {
+              await axios({
+                method: 'post',
+                url: process.env.URL_CREATE_TEACHERS,
+                headers: { authorization: token },
+                data: {
+                  idUser: user.id,
+                  speciality: speciality,
+                }
+              });
+            } else if (flowType === 6) {
+              await axios({
+                method: 'post',
+                url: process.env.URL_CREATE_STUDENTS,
+                headers: { authorization: token },
+                data: {
+                  idUser: user.id,
+                  idClass: idClass,
+                  ra: ra,
+                  schoolYear: schoolYear,
+                  situation: situation,
+                }
+              });
+              await axios({
+                method: 'post',
+                url: `${process.env.URL_ADD_STUDENTS}/${idClass}`,
+                headers: { authorization: token },
+                data: {
+                  students: {
+                    id: user.id,
+                    name: user.name,
+                    ra: ra
+                  }
+                }
+              });
+            }
+          } catch (err) {
+            await models.users.destroy({ where: { id: user.id } })
+            logger.error(`Failed to create user - Error: ${err?.response?.data?.error?.message || err.message}`)
+  
+            return res.status(500).send({
+              error: {
+                message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
+              }
+            })
+          }
+  
+          res.status(201).send({
+            message: "Usuário criado com sucesso",
+            user
+          })
         })
-
-        for (let i = 0; i < user.length; i++) {
-          delete user[i].dataValues.password;
-        }
-
-        res.status(201).send({
-          message: "Usuário criado com sucesso",
-          user
+      } else {
+        return res.status(409).send({
+          error: {
+            message: 'CPF inválido'
+          }
         })
-      })
+      }
     } else {
       return res.status(409).send({
         error: {

@@ -11,7 +11,7 @@ module.exports = {
     dialect: "mysql",
 
     migrationStorage: "json",
-    migrationStoragePath: path.resolve(__dirname, 'src' , 'database' , 'historyMigrations.json'),
+    migrationStoragePath: path.resolve('src' , 'database' , 'historyMigrations.json'),
 
     logging: false
   },

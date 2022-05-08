@@ -68,21 +68,17 @@ exports.store = async (req, res) => {
       period,
       course,
       schoolYear,
-      teachers,
-      students,
-      lessons,
       block,
       classNumber,
-      classTheme
     } = req.body
 
     const token = req.headers.authorization.slice(7)
     const tokenDecoded = jwt.decode(token)
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
-    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution}})
+    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
 
-    if (!period || !course || !schoolYear || !teachers || !students || !lessons || !block || !classNumber || !classTheme) {
+    if (!period || !course || !schoolYear || !block || !classNumber) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -92,6 +88,7 @@ exports.store = async (req, res) => {
 
     const findClasses = await models.class_.findAll({
       where: {
+        idInstitution: findUser.idInstitution,
         period: period,
         block: block,
         classNumber: classNumber
@@ -100,8 +97,9 @@ exports.store = async (req, res) => {
 
     if (findClasses.length === 0) {
       const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
-      
-      if(period.toLowerCase() === courseData[0].period.toLowerCase()) {
+      console.log(courseData)
+
+      if (period.toLowerCase() === courseData[0].period.toLowerCase()) {
         const newClass = await models.class_.create({
           idInstitution: findInstitution.id,
           period: period,
@@ -112,9 +110,9 @@ exports.store = async (req, res) => {
           lessons: courseData[0].lessons,
           block: block,
           classNumber: classNumber,
-          classTheme: courseData[0].classTheme
+          classTheme: courseData[0].classTheme[schoolYear-1]
         })
-  
+
         res.status(201).send({
           message: 'Classe criada com sucesso',
           newClass
@@ -233,7 +231,7 @@ exports.addStudents = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    if (!students.name || (!students.id && typeof students.id === 'number') || (!students.ra && typeof students.ra === 'number')) {
+    if (!students.name || (!students.id && typeof students.id === 'number') || (!students.ra && typeof students.ra === 'string')) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
