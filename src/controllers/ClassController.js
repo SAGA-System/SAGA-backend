@@ -10,7 +10,13 @@ exports.index = async (req, res) => {
     logger.info(`ClassController/index - list all classes`)
     //await models.class_.sync({alter: true})
 
-    const classes = await models.class_.findAll()
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
+
+    const classes = await models.class_.findAll({ where: { idInstitution: findInstitution.id }})
 
     if (classes.length === 0) {
       return res.status(404).send({

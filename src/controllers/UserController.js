@@ -94,7 +94,7 @@ exports.store = async (req, res) => {
     cpf = normalizer.removeMask(cpf)
     phone = normalizer.removeMask(phone)
 
-    if(ra) {
+    if (ra) {
       ra = normalizer.removeMask(ra)
     }
 
@@ -104,7 +104,7 @@ exports.store = async (req, res) => {
     const findForEmail = await models.users.findAll({ where: { email: email } })
 
     if (findForCPF.length === 0 && findForEmail.length === 0) {
-      if(dataValidator.validateCPF(cpf)) {
+      if (dataValidator.validateCPF(cpf)) {
         bcrypt.hash(password, 10, async (errBcrypt, hash) => {
           if (errBcrypt) {
             return res.status(500).send({
@@ -113,7 +113,7 @@ exports.store = async (req, res) => {
               }
             })
           }
-  
+
           const user = await models.users.create({
             idInstitution: idInstitution,
             name: name,
@@ -130,7 +130,7 @@ exports.store = async (req, res) => {
             complement: complement,
             city: city
           })
-  
+
           delete user.dataValues.password;
 
           try {
@@ -173,14 +173,14 @@ exports.store = async (req, res) => {
           } catch (err) {
             await models.users.destroy({ where: { id: user.id } })
             logger.error(`Failed to create user - Error: ${err?.response?.data?.error?.message || err.message}`)
-  
+
             return res.status(500).send({
               error: {
                 message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
               }
             })
           }
-  
+
           res.status(201).send({
             message: "Usuário criado com sucesso",
             user
@@ -212,9 +212,67 @@ exports.store = async (req, res) => {
   }
 }
 
-exports.update = async (req, res) => { }
+exports.update = async (req, res) => {
 
-exports.destroy = async (req, res) => { }
+}
+
+exports.destroy = async (req, res) => {
+  try {
+    logger.info(`UserController/destroy - delete user by id`)
+
+    const id = req.params.id
+
+    const token = req.headers.authorization
+
+    const findUser = await models.users.findAll({ where: { id: id } })
+
+    if (findUser[0].flowType === 4) {
+      const Classes = await models.class_.findAll()
+
+      const TeacherClassesId = Classes.filter((item) => item.teachers.length > 0 && item.teachers.map(item => {
+        return item.id === id
+      }))
+
+      for(let i = 0; i < TeacherClassesId.length; i++) {
+        await axios({
+          method: 'delete',
+          url: `${process.env.URL_DELETE_TEACHERS_FROM_CLASS}/${TeacherClassesId[i].id}/${id}`,
+          headers: { authorization: token },
+        });
+      }
+
+    } else if (findUser[0].flowType === 6) {
+      const findStudent = await models.students.findOne({where: { idUser: id }})
+      await axios({
+        method: 'delete',
+        url: `${process.env.URL_DELETE_STUDENTS_FROM_CLASS}/${findStudent.idClass}/${id}`,
+        headers: { authorization: token },
+      });
+    }
+
+    if (findUser.length > 0) {
+      await models.users.destroy({ where: { id: id } })
+
+      res.status(200).send({
+        message: 'Usuário deletado com sucesso'
+      })
+    } else {
+      return res.status(404).send({
+        error: {
+          message: 'Usuário não encontrada ou já deletado'
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to delete user by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
 
 exports.login = async (req, res) => {
   try {

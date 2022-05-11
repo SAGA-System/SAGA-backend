@@ -3,13 +3,27 @@ const initModels = require('../models/init-models')
 const db = require('../models/db')
 const normalizer = require('../resources/normalizer')
 const models = initModels(db)
+const jwt = require('jsonwebtoken')
 
 exports.index = async (req, res) => {
   try {
     logger.info(`studentsController/index - list all students`)
     //await models.students.sync({alter: true})
 
-    const students = await models.students.findAll()
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+
+    const students = await models.students.findAll({
+      include: {
+        model: models.users,
+        as: 'idUser_user',
+        where: {
+          idInstitution: findUser.idInstitution
+        }
+      }
+    })
 
     if (students.length === 0) {
       return res.status(404).send({
