@@ -8,14 +8,13 @@ const jwt = require('jsonwebtoken')
 exports.index = async (req, res) => {
   try {
     logger.info(`studentsController/index - list all students`)
-    //await models.students.sync({alter: true})
 
     const token = req.headers.authorization.slice(7)
     const tokenDecoded = jwt.decode(token)
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
-    const students = await models.students.findAll({
+    let students = await models.students.findOne({
       include: {
         model: models.users,
         as: 'idUser_user',
@@ -25,13 +24,15 @@ exports.index = async (req, res) => {
       }
     })
 
-    if (students.length === 0) {
+    if (!students) {
       return res.status(404).send({
         error: {
           message: 'Nenhum estudante foi encontrado na plataforma'
         }
       })
     }
+
+    delete students.dataValues.idUser_user
 
     res.status(200).send(students)
   } catch (err) {
@@ -114,7 +115,6 @@ exports.store = async (req, res) => {
     if (studentExists.length === 0) {
       const newStudent = await models.students.create({
         idUser: idUser,
-        idClass: idClass,
         ra: ra,
         schoolYear: schoolYear,
         situation: situation,
@@ -136,7 +136,6 @@ exports.store = async (req, res) => {
 
   } catch (err) {
     logger.error(`Failed to create student - Error: ${err.message}`)
-    console.log(err)
 
     return res.status(500).send({
       error: {
@@ -152,7 +151,7 @@ exports.update = async (req, res) => {
 
     const id = req.params.id
 
-    const { schoolYear, situation } = req.body
+    const { schoolYear, situation, gang } = req.body
 
     const findStudent = await models.students.findAll({ where: { id: id } })
 
@@ -160,6 +159,7 @@ exports.update = async (req, res) => {
       await models.students.update({
         schoolYear: schoolYear,
         situation: situation,
+        gang: gang
       }, { where: { id: id } })
 
       res.status(200).send(await models.students.findOne({ where: { id: id } }))
@@ -208,11 +208,15 @@ exports.updateFrequency = async (req, res) => {
     logger.info(`studentsController/updateFrequency - making the school call`)
 
     const id = req.params.id
-    const { frequency } = req.body
+    let { frequency } = req.body
 
     const findStudent = await models.students.findOne({ where: { id: id } })
 
-    if (!frequency.classTheme || !frequency.classGiven || !frequency.absence) {
+    if(frequency.absence === undefined) {
+      frequency = {...frequency, absence: 0}
+    }
+
+    if (!frequency.classTheme || !frequency.classesGiven) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
@@ -222,15 +226,15 @@ exports.updateFrequency = async (req, res) => {
 
     if (findStudent) {
       const classThemeFrequency = findStudent.frequency.filter(item =>
-        (item.classTheme === frequency.classTheme)
+        (item.name === frequency.classTheme)
       )
 
-      if (classThemeFrequency) {
-        classThemeFrequency.classGiven += frequency.classGiven
-        classThemeFrequency.absence += frequency.absence
+      if (classThemeFrequency.length !== 0) {
+        classThemeFrequency[0].classesGiven += frequency.classesGiven
+        classThemeFrequency[0].absence += frequency.absence
 
         const updatedFrequency = findStudent.frequency.map(item => {
-          item.classTheme === classThemeFrequency.classTheme ? classThemeFrequency : item
+          return item.name === classThemeFrequency.name ? classThemeFrequency : item
         })
 
         await models.students.update({

@@ -10,5 +10,7 @@ router.put('/:id', login, UserController.update)
 router.delete('/:id', login, UserController.destroy)
 
 router.post('/login', UserController.login)
+router.post('/forgotPassword', UserController.forgotPassword)
+router.post('/resetPassword', UserController.resetPassword)
 
 module.exports = router

@@ -14,7 +14,7 @@ exports.index = async (req, res) => {
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
-    const teachers = await models.teachers.findAll({
+    const teachers = await models.teachers.findOne({
       include: {
         model: models.users,
         as: 'idUser_user',
@@ -24,13 +24,15 @@ exports.index = async (req, res) => {
       }
     })
 
-    if (teachers.length === 0) {
+    if (!teachers) {
       return res.status(404).send({
         error: {
           message: 'Nenhum professor foi encontrado na plataforma'
         }
       })
     }
+
+    delete teachers.dataValues.idUser_user
 
     res.status(200).send(teachers)
   } catch (err) {
@@ -276,7 +278,6 @@ exports.updateLessons = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update lessons in teachers - Error: ${err.message}`)
-    console.log(err)
 
     return res.status(500).send({
       error: {

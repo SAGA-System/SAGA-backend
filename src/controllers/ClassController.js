@@ -14,9 +14,8 @@ exports.index = async (req, res) => {
     const tokenDecoded = jwt.decode(token)
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
-    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
 
-    const classes = await models.class_.findAll({ where: { idInstitution: findInstitution.id }})
+    const classes = await models.class_.findAll({ where: { idInstitution: findUser.idInstitution } })
 
     if (classes.length === 0) {
       return res.status(404).send({
@@ -26,7 +25,7 @@ exports.index = async (req, res) => {
       })
     }
 
-    res.status(200).send(classes)
+    return res.status(200).send(classes)
   } catch (err) {
     logger.error(`Failed to list classes - Error: ${err.message}`)
 
@@ -54,7 +53,7 @@ exports.show = async (req, res) => {
       })
     }
 
-    res.status(200).send(class_)
+    return res.status(200).send(class_)
   } catch (err) {
     logger.error(`Failed to list class by id - Error: ${err.message}`)
 
@@ -103,7 +102,6 @@ exports.store = async (req, res) => {
 
     if (findClasses.length === 0) {
       const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
-      console.log(courseData)
 
       if (period.toLowerCase() === courseData[0].period.toLowerCase()) {
         const newClass = await models.class_.create({
@@ -116,22 +114,22 @@ exports.store = async (req, res) => {
           lessons: courseData[0].lessons,
           block: block,
           classNumber: classNumber,
-          classTheme: courseData[0].classTheme[schoolYear-1]
+          classTheme: courseData[0].classTheme[schoolYear - 1]
         })
 
-        res.status(201).send({
+        return res.status(201).send({
           message: 'Classe criada com sucesso',
           newClass
         })
       } else {
-        res.status(409).send({
+        return res.status(409).send({
           error: {
             message: 'Não existe modalidade do curso no turno solicitado',
           }
         })
       }
     } else {
-      res.status(409).send({
+      return res.status(409).send({
         error: {
           message: 'Já existe uma classe no local informado',
         }
@@ -177,9 +175,9 @@ exports.update = async (req, res) => {
         }
       })
 
-      res.status(200).send(await models.class_.findOne({ where: { id: id } }))
+      return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -207,11 +205,11 @@ exports.destroy = async (req, res) => {
     if (findClass.length !== 0) {
       await models.class_.destroy({ where: { id: id } })
 
-      res.status(200).send({
+      return res.status(200).send({
         message: 'Classe deletada com sucesso'
       })
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Classe não encontrada ou já deletada',
         }
@@ -237,7 +235,7 @@ exports.addStudents = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    if (!students.name || (!students.id && typeof students.id === 'number') || (!students.ra && typeof students.ra === 'string')) {
+    if ((!students.id && typeof students.id === 'number')) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -255,22 +253,35 @@ exports.addStudents = async (req, res) => {
       }
 
       if (!studentExistsInClass) {
+        const user = await models.students.findOne({
+          include: {
+            model: models.users,
+            as: 'idUser_user',
+            where: {
+              id: students.id
+            }
+          }
+        })
+        students.ra = user.ra
+        students.name = user.idUser_user.name
+        students.gang = user.gang
+
         findClass.students.push(students)
 
         await models.class_.update({
           students: findClass.students,
         }, { where: { id: idClass } })
 
-        res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
       } else {
-        res.status(409).send({
+        return res.status(409).send({
           error: {
             message: 'Já existe um aluno nessa sala para as informações fornecidas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -325,16 +336,16 @@ exports.updateStudent = async (req, res) => {
           students: studentsUpdated,
         }, { where: { id: idClass } })
 
-        res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Não existe um aluno nessa classe com as credenciais informadas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -383,16 +394,16 @@ exports.deleteStudent = async (req, res) => {
           students: updatedStudents,
         }, { where: { id: idClass } })
 
-        res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Não existe um aluno nessa classe com as credenciais informadas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -418,7 +429,7 @@ exports.addTeachers = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    if (!teachers.name || !teachers.id || !teachers.classTheme || !teachers.gang) {
+    if (!teachers.id || !teachers.classTheme || !teachers.gang) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -440,22 +451,33 @@ exports.addTeachers = async (req, res) => {
       }
 
       if (!teachersExistsInClass) {
+        const user = await models.teachers.findOne({
+          include: {
+            model: models.users,
+            as: 'idUser_user',
+            where: {
+              id: teachers.id
+            }
+          }
+        })
+
+        teachers.name = user.idUser_user.name
         findClass.teachers.push(teachers)
 
         await models.class_.update({
           teachers: findClass.teachers,
         }, { where: { id: idClass } })
 
-        res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
       } else {
-        res.status(409).send({
+        return res.status(409).send({
           error: {
             message: 'Já existe um professor nessa sala com as informações fornecidas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -479,8 +501,8 @@ exports.updateTeacher = async (req, res) => {
     const idClass = req.params.idClass
     const idUser = req.params.idUser
 
-    const { name, gang, classTheme } = req.body
-    const dataForUpdate = { name, gang, classTheme }
+    const { gang, classTheme } = req.body
+    const dataForUpdate = { gang, classTheme }
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
@@ -497,9 +519,9 @@ exports.updateTeacher = async (req, res) => {
         const teachersUpdated = findClass.teachers.map(({ id, classTheme, name, gang }) => {
           return id === Number(idUser) ? {
             id,
+            name,
             gang: (dataForUpdate.gang) && (gang !== dataForUpdate.gang) ? dataForUpdate.gang : gang,
             classTheme: (dataForUpdate.classTheme) && (classTheme !== dataForUpdate.classTheme) ? dataForUpdate.classTheme : classTheme,
-            name: (dataForUpdate.name) && (name !== dataForUpdate.name) ? dataForUpdate.name : name
           } : {
             id,
             name,
@@ -512,16 +534,16 @@ exports.updateTeacher = async (req, res) => {
           teachers: teachersUpdated,
         }, { where: { id: idClass } })
 
-        res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Não existe um professor nessa classe com as credenciais informadas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -570,16 +592,16 @@ exports.deleteTeacher = async (req, res) => {
           teachers: updatedTeachers,
         }, { where: { id: idClass } })
 
-        res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Não existe um professor nessa classe com as credenciais informadas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
@@ -598,7 +620,7 @@ exports.deleteTeacher = async (req, res) => {
 
 exports.updateLessons = async (req, res) => {
   try {
-    logger.info(`ClassController/addLessons - add lessons to existing class`)
+    logger.info(`ClassController/updateLessons - update lessons to existing class`)
 
     const idClass = req.params.idClass
 
@@ -625,17 +647,16 @@ exports.updateLessons = async (req, res) => {
         }
       }, { where: { id: idClass } })
 
-      res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
-
+      return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
       })
     }
   } catch (err) {
-    logger.error(`Failed to delete class by id - Error: ${err.message}`)
+    logger.error(`Failed to update lessons by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
@@ -647,7 +668,7 @@ exports.updateLessons = async (req, res) => {
 
 exports.updateClassThemes = async (req, res) => {
   try {
-    logger.info(`ClassController/addLessons - add lessons to existing class`)
+    logger.info(`ClassController/updateClassThemes - update class themes to existing class`)
 
     const idClass = req.params.idClass
 
@@ -662,17 +683,63 @@ exports.updateClassThemes = async (req, res) => {
         classTheme: classTheme
       }, { where: { id: idClass } })
 
-      res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+      return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
 
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
       })
     }
   } catch (err) {
-    logger.error(`Failed to delete class by id - Error: ${err.message}`)
+    logger.error(`Failed to update class themes by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.defineGangs = async (req, res) => {
+  try {
+    logger.info(`ClassController/defineGangs - define gangs in class`)
+
+    const idClass = req.params.idClass
+
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
+
+    findClass.students.sort((a, b) => {
+      let x = a.name.toLowerCase()
+      let y = b.name.toLowerCase()
+
+      return x === y ? 0 : x > y ? 1 : -1
+    })
+
+    const updatedStudents = findClass.students.map((item, index) => {
+      item.gang = (index + 1) <= Math.floor(findClass.students.length / 2) ? "A" : "B"
+      return item
+    })
+
+    for(u of updatedStudents) {
+      const student = await models.students.findOne({ where: { idUser: u.id }})
+
+      if(student && (student.gang === '' || student.gang !== u.gang)) {
+        await models.students.update({
+          gang: u.gang
+        }, { where: { idUser: u.id } })
+      }
+    }
+    
+    await models.class_.update({
+      students: updatedStudents,
+    }, { where: { id: idClass } })
+
+    return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+  } catch (err) {
+    logger.error(`Failed to define gangs in class - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

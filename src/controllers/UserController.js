@@ -1,10 +1,12 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const axios = require('axios')
+const crypto = require('crypto')
 
 const logger = require('../resources/logger')
 const normalizer = require('../resources/normalizer')
 const dataValidator = require('../resources/dataValidator')
+const mailer = require('../../config/nodemailer')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
@@ -28,7 +30,7 @@ exports.index = async (req, res) => {
       delete users[i].dataValues.password;
     }
 
-    res.status(200).send(users)
+    return res.status(200).send(users)
 
   } catch (err) {
     logger.error(`Failed to list users - Error: ${err.message}`)
@@ -41,7 +43,35 @@ exports.index = async (req, res) => {
   }
 }
 
-exports.show = async (req, res) => { }
+exports.show = async (req, res) => {
+  try {
+    logger.info(`UserController/show - list user by id`)
+
+    const id = req.params.id
+
+    const user = await models.users.findOne({ where: { id: id } })
+
+    if (!user) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhum usuário foi encontrado. Verifique as informações e tente novamente'
+        }
+      })
+    }
+
+    delete user.dataValues.password
+
+    return res.status(200).send(user)
+  } catch (err) {
+    logger.error(`Failed to list user by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
 
 exports.store = async (req, res) => {
   try {
@@ -181,7 +211,7 @@ exports.store = async (req, res) => {
             })
           }
 
-          res.status(201).send({
+          return res.status(201).send({
             message: "Usuário criado com sucesso",
             user
           })
@@ -213,7 +243,116 @@ exports.store = async (req, res) => {
 }
 
 exports.update = async (req, res) => {
+  try {
+    logger.info(`UserController/update - update user by id`)
 
+    const token = req.headers.authorization
+    const id = req.params.id
+
+    const {
+      name,
+      cpf,
+      rg,
+      flowType,
+      phone,
+      street,
+      number,
+      district,
+      complement,
+      city,
+    } = req.body
+
+    const findUser = await models.users.findOne({ where: { id: id } })
+
+    if (findUser) {
+      await models.users.update({
+        name: name,
+        cpf: cpf,
+        rg: rg,
+        flowType: flowType,
+        phone: phone,
+        street: street,
+        number: number,
+        district: district,
+        complement: complement,
+        city: city
+      }, { where: { id: id } })
+
+      const updatedUser = await models.users.findOne({ where: { id: id } })
+
+      if (name !== findUser.dataValues.name) {
+        if (updatedUser.dataValues.flowType === 4) {
+          const Classes = await models.class_.findAll({ where: { idInstitution: updatedUser.idInstitution } })
+
+          const ids = Classes.filter((item) => item.dataValues.teachers.length > 0 && item.dataValues.teachers.map(item => {
+            return item.id === Number(id)
+          }).some(elem => elem === true))
+
+          for (let i = 0; i < ids.length; i++) {
+            await axios({
+              method: 'put',
+              url: `${process.env.URL_UPDATE_TEACHERS_FROM_CLASS}/${ids[i].id}/${id}`,
+              headers: { authorization: token },
+              data: {
+                name: name,
+              }
+            }).catch(err => {
+              logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+              return res.status(500).send({
+                error: {
+                  message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
+                }
+              })
+            });
+          }
+        } else if (updatedUser.dataValues.flowType === 6) {
+          const Classes = await models.class_.findAll({ where: { idInstitution: updatedUser.idInstitution } })
+
+          const ids = Classes.filter((item) => item.dataValues.students.length > 0 && item.dataValues.students.map(item => {
+            return item.id === Number(id)
+          }).some(elem => elem === true))
+
+          for (let i = 0; i < ids.length; i++) {
+            await axios({
+              method: 'put',
+              url: `${process.env.URL_UPDATE_STUDENTS_FROM_CLASS}/${ids[i].id}/${id}`,
+              headers: { authorization: token },
+              data: {
+                name: name,
+              }
+            }).catch(err => {
+              logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+              return res.status(500).send({
+                error: {
+                  message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
+                }
+              })
+            });
+          }
+        }
+      }
+
+      delete updatedUser.dataValues.password
+
+      return res.status(200).send(updatedUser)
+    } else {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhum usuário foi encontrado. Não foi possível concluir a atualização',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to update user by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
 }
 
 exports.destroy = async (req, res) => {
@@ -226,34 +365,29 @@ exports.destroy = async (req, res) => {
 
     const findUser = await models.users.findAll({ where: { id: id } })
 
-    if (findUser[0].flowType === 4) {
+    if ((findUser[0].flowType === 4) || (findUser[0].flowType === 6)) {
+      const flowType = findUser[0].flowType
       const Classes = await models.class_.findAll()
 
-      const TeacherClassesId = Classes.filter((item) => item.teachers.length > 0 && item.teachers.map(item => {
-        return item.id === id
-      }))
+      const ids = Classes.filter(({ teachers, students }) => flowType === 4 ? teachers.length > 0 && teachers.map(item => {
+        return item.id === Number(id)
+      }).some(elem => elem === true) : students.length > 0 && students.map(item => {
+        return item.id === Number(id)
+      }).some(elem => elem === true))
 
-      for(let i = 0; i < TeacherClassesId.length; i++) {
+      for (let i = 0; i < ids.length; i++) {
         await axios({
           method: 'delete',
-          url: `${process.env.URL_DELETE_TEACHERS_FROM_CLASS}/${TeacherClassesId[i].id}/${id}`,
+          url: `${flowType === 4 ? process.env.URL_DELETE_TEACHERS_FROM_CLASS : process.env.URL_DELETE_STUDENTS_FROM_CLASS}/${ids[i].id}/${id}`,
           headers: { authorization: token },
         });
       }
-
-    } else if (findUser[0].flowType === 6) {
-      const findStudent = await models.students.findOne({where: { idUser: id }})
-      await axios({
-        method: 'delete',
-        url: `${process.env.URL_DELETE_STUDENTS_FROM_CLASS}/${findStudent.idClass}/${id}`,
-        headers: { authorization: token },
-      });
     }
 
     if (findUser.length > 0) {
       await models.users.destroy({ where: { id: id } })
 
-      res.status(200).send({
+      return res.status(200).send({
         message: 'Usuário deletado com sucesso'
       })
     } else {
@@ -305,7 +439,7 @@ exports.login = async (req, res) => {
         const token = jwt.sign({
           id: findUser[0].id,
         }, process.env.JWT_KEY, {
-          expiresIn: "1h"
+          expiresIn: "3h"
         })
         return res.status(200).send({
           message: 'Autenticado com sucesso',
@@ -316,6 +450,127 @@ exports.login = async (req, res) => {
     })
   } catch (err) {
     logger.error(`Failed to login user - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    logger.info(`UserController/forgotPassword - send a mail to reset password`)
+    const { email } = req.body;
+
+    const findUser = await models.users.findOne({ where: { email: email } })
+
+    if (findUser) {
+      const token = crypto.randomBytes(20).toString('hex')
+
+      const now = new Date();
+      now.setHours(now.getHours() - 2)
+
+      await models.users.update({
+        resetPassword: {
+          token: token,
+          expiresIn: now
+        }
+      }, { where: { email: email } })
+
+      mailer.sendMail({
+        to: email,
+        from: 'zulianc09@gmail.com',
+        subject: 'Solicitação de Alteração de Senha',
+        template: 'forgotPassword',
+        context: { token },
+      }, (err) => {
+        if (err) {
+          logger.error(`Can't send email to reset password - Error: ${err.message}`)
+
+          return res.status(400).send({
+            error: {
+              message: 'Não foi possível mandar o e-mail para reset de senha'
+            }
+          })
+        }
+
+        return res.send()
+      })
+    } else {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhum usuário foi encontrado. verifique o email e tente novamente',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to forgot user password - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.resetPassword = async (req, res) => {
+  try {
+    logger.info(`UserController/resetPassword - reset password`)
+    const { email, token, password } = req.body
+
+    const user = await models.users.findOne({ where: { email: email } })
+
+    if (user) {
+      if (token === user.resetPassword.token) {
+        const now = new Date()
+        now.setHours(now.getHours() - 3)
+        const expiresIn = new Date(user.resetPassword.expiresIn)
+
+        if (expiresIn >= now) {
+          bcrypt.hash(password, 10, async (errBcrypt, hash) => {
+            if (errBcrypt) {
+              return res.status(500).send({
+                error: {
+                  message: errBcrypt
+                }
+              })
+            }
+
+            await models.users.update({
+              password: hash
+            }, { where: { email: email } })
+
+            return res.status(200).send({
+              message: 'Senha atualizada com sucesso!'
+            })
+          })
+        } else {
+          return res.status(400).send({
+            error: {
+              message: 'Token expirado. Solicite novamente o reset de senha'
+            }
+          })
+        }
+      } else {
+        return res.status(400).send({
+          error: {
+            message: 'Token inválido'
+          }
+        })
+      }
+    } else {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhum usuário foi encontrado. verifique o email e tente novamente',
+        }
+      })
+    }
+
+  } catch (err) {
+    logger.error(`Failed to reset user password - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

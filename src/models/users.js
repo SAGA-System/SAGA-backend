@@ -68,6 +68,10 @@ module.exports = function(sequelize, DataTypes) {
     city: {
       type: DataTypes.STRING(255),
       allowNull: false
+    },
+    resetPassword: {
+      type: DataTypes.JSON,
+      allowNull: true
     }
   }, {
     sequelize,

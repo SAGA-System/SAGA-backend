@@ -25,4 +25,6 @@ router.post('/updateLessons/:idClass', login, ClassController.updateLessons)
 //update classTheme column
 router.post('/updateClassThemes/:idClass', login, ClassController.updateClassThemes)
 
+router.put('/defineGangs/:idClass/', login, ClassController.defineGangs)
+
 module.exports = router

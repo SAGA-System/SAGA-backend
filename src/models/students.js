@@ -15,14 +15,6 @@ module.exports = function(sequelize, DataTypes) {
         key: 'id'
       }
     },
-    idClass: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'class',
-        key: 'id'
-      }
-    },
     ra: {
       type: DataTypes.STRING(255),
       allowNull: false,
@@ -70,13 +62,6 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "idUser" },
-        ]
-      },
-      {
-        name: "Students_fk1",
-        using: "BTREE",
-        fields: [
-          { name: "idClass" },
         ]
       },
     ]
