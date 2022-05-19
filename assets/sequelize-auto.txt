@@ -1,0 +1,1 @@
+sequelize-auto -h localhost -d dbnewnsa -u root -x Senha2022 -p 3406  --dialect mysql -o src/models

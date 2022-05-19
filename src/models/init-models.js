@@ -5,6 +5,7 @@ var _evaluation = require("./evaluation");
 var _files = require("./files");
 var _institution = require("./institution");
 var _permissions = require("./permissions");
+var _studentclasses = require("./studentclasses");
 var _students = require("./students");
 var _teachers = require("./teachers");
 var _userpermissions = require("./userpermissions");
@@ -17,6 +18,7 @@ function initModels(sequelize) {
   var files = _files(sequelize, DataTypes);
   var institution = _institution(sequelize, DataTypes);
   var permissions = _permissions(sequelize, DataTypes);
+  var studentclasses = _studentclasses(sequelize, DataTypes);
   var students = _students(sequelize, DataTypes);
   var teachers = _teachers(sequelize, DataTypes);
   var userpermissions = _userpermissions(sequelize, DataTypes);
@@ -26,6 +28,8 @@ function initModels(sequelize) {
   class_.hasMany(bulletin, { as: "bulletins", foreignKey: "idClass"});
   evaluation.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
   class_.hasMany(evaluation, { as: "evaluations", foreignKey: "idClass"});
+  studentclasses.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
+  class_.hasMany(studentclasses, { as: "studentclasses", foreignKey: "idClass"});
   class_.belongsTo(institution, { as: "idInstitution_institution", foreignKey: "idInstitution"});
   institution.hasMany(class_, { as: "classes", foreignKey: "idInstitution"});
   users.belongsTo(institution, { as: "idInstitution_institution", foreignKey: "idInstitution"});
@@ -34,6 +38,8 @@ function initModels(sequelize) {
   permissions.hasMany(userpermissions, { as: "userpermissions", foreignKey: "idPermissions"});
   bulletin.belongsTo(students, { as: "idStudent_student", foreignKey: "idStudent"});
   students.hasMany(bulletin, { as: "bulletins", foreignKey: "idStudent"});
+  studentclasses.belongsTo(students, { as: "idStudent_student", foreignKey: "idStudent"});
+  students.hasMany(studentclasses, { as: "studentclasses", foreignKey: "idStudent"});
   bulletin.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
   teachers.hasMany(bulletin, { as: "bulletins", foreignKey: "idTeacher"});
   evaluation.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
@@ -54,6 +60,7 @@ function initModels(sequelize) {
     files,
     institution,
     permissions,
+    studentclasses,
     students,
     teachers,
     userpermissions,
