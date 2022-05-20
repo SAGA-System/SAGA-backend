@@ -268,6 +268,15 @@ exports.addStudents = async (req, res) => {
 
         findClass.students.push(students)
 
+        console.log(students.id)
+        console.log(idClass)
+
+        await models.studentclasses.create({
+          idStudent: students.id,
+          idClass: idClass,
+          gang: ''
+        })
+
         await models.class_.update({
           students: findClass.students,
         }, { where: { id: idClass } })
@@ -288,6 +297,7 @@ exports.addStudents = async (req, res) => {
       })
     }
   } catch (err) {
+    console.log(err)
     logger.error(`Failed to add students in class - Error: ${err.message}`)
 
     return res.status(500).send({
@@ -723,16 +733,24 @@ exports.defineGangs = async (req, res) => {
       return item
     })
 
-    for(u of updatedStudents) {
-      const student = await models.students.findOne({ where: { idUser: u.id }})
+    for (u of updatedStudents) {
+      const student = await models.studentclasses.findOne({
+        include: {
+          model: models.students,
+          as: 'idStudent_student',
+          where: {
+            idUser: u.id
+          }
+        }
+      })
 
-      if(student && (student.gang === '' || student.gang !== u.gang)) {
-        await models.students.update({
+      if (student && student.idClass === Number(idClass) && (student.gang === '' || student.gang !== u.gang)) {
+        await models.studentclasses.update({
           gang: u.gang
-        }, { where: { idUser: u.id } })
+        }, { where: { id: student.id } })
       }
     }
-    
+
     await models.class_.update({
       students: updatedStudents,
     }, { where: { id: idClass } })

@@ -122,6 +122,15 @@ exports.store = async (req, res) => {
         frequency: findClass.classTheme
       })
 
+      console.log(newStudent.id)
+      console.log(idClass)
+
+      await models.studentclasses.create({
+        idStudent: newStudent.id,
+        idClass: idClass,
+        gang: ''
+      })
+
       res.status(201).send({
         message: 'Estudante criado com sucesso',
         newStudent
@@ -212,8 +221,8 @@ exports.updateFrequency = async (req, res) => {
 
     const findStudent = await models.students.findOne({ where: { id: id } })
 
-    if(frequency.absence === undefined) {
-      frequency = {...frequency, absence: 0}
+    if (frequency.absence === undefined) {
+      frequency = { ...frequency, absence: 0 }
     }
 
     if (!frequency.classTheme || !frequency.classesGiven) {
