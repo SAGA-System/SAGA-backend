@@ -29,13 +29,13 @@ app.use((req, res, next) => {
   next()
 })
 
-app.use((next) => {
+app.use((req, res, next) => {
   const err = new Error('Rota não encontrada')
   err.status = 404
   next(err)
 })
 
-app.use((err, res) => {
+app.use((err, req, res) => {
   res.status(err.status || 500)
   return res.send({
     error: {

@@ -177,7 +177,7 @@ exports.store = async (req, res) => {
                 schoolYear: schoolYear,
                 situation: situation,
               }, { headers: { authorization: token } });
-              await api.post('/class/addStudents', {
+              await api.post(`/class/addStudents/${idClass}`, {
                 idUser: user.id,
               }, { headers: { authorization: token } });
             }

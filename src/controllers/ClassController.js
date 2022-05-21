@@ -773,7 +773,7 @@ exports.defineGangs = async (req, res) => {
       })
 
       for (u of updatedStudents) {
-        const student = await models.studentclasses.findOne({
+        const student = await models.studentclasses.findOne({ where: {idClass: idClass },
           include: {
             model: models.students,
             as: 'idStudent_student',
