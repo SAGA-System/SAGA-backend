@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize')
-const config = require('../../config/config.js')
+const config = require('../../config/sequelizeConfig.js')
 require('dotenv').config()
 if (config[process.env.NODE_ENV]) {
   const sequelize = new Sequelize(config[process.env.NODE_ENV]);
