@@ -1,9 +1,11 @@
+const jwt = require('jsonwebtoken')
+
 const logger = require('../resources/logger')
+const normalizer = require('../resources/normalizer')
+
 const initModels = require('../models/init-models')
 const db = require('../models/db')
-const normalizer = require('../resources/normalizer')
 const models = initModels(db)
-const jwt = require('jsonwebtoken')
 
 exports.index = async (req, res) => {
   try {
@@ -98,8 +100,7 @@ exports.store = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    let modifyCourses
-    modifyCourses = findClass.classTheme.map(({ name, totalClasses }) => {
+    const modifyCourses = findClass.classTheme.map(({ name, totalClasses }) => {
       return {
         name,
         totalClasses,
@@ -118,17 +119,13 @@ exports.store = async (req, res) => {
         ra: ra,
         schoolYear: schoolYear,
         situation: situation,
-        gang: '',
-        frequency: findClass.classTheme
       })
-
-      console.log(newStudent.id)
-      console.log(idClass)
 
       await models.studentclasses.create({
         idStudent: newStudent.id,
         idClass: idClass,
-        gang: ''
+        gang: '',
+        frequency: findClass.classTheme
       })
 
       res.status(201).send({
@@ -160,7 +157,7 @@ exports.update = async (req, res) => {
 
     const id = req.params.id
 
-    const { schoolYear, situation, gang } = req.body
+    const { schoolYear, situation } = req.body
 
     const findStudent = await models.students.findAll({ where: { id: id } })
 
@@ -168,7 +165,6 @@ exports.update = async (req, res) => {
       await models.students.update({
         schoolYear: schoolYear,
         situation: situation,
-        gang: gang
       }, { where: { id: id } })
 
       res.status(200).send(await models.students.findOne({ where: { id: id } }))
@@ -181,92 +177,6 @@ exports.update = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update student by id - Error: ${err.message}`)
-
-    return res.status(500).send({
-      error: {
-        message: 'Ocorreu um erro interno do servidor'
-      }
-    })
-  }
-}
-
-exports.destroy = async (req, res) => {
-  try {
-    logger.info(`studentsController/destroy - delete student by id`)
-
-    const id = req.params.id
-
-    await models.students.destroy({ where: { id: id } })
-
-    res.status(200).send({
-      message: 'Estudante deletado com sucesso'
-    })
-  } catch (err) {
-    logger.error(`Failed to delete student by id - Error: ${err.message}`)
-
-    return res.status(500).send({
-      error: {
-        message: 'Ocorreu um erro interno do servidor'
-      }
-    })
-  }
-}
-
-exports.updateFrequency = async (req, res) => {
-  try {
-    logger.info(`studentsController/updateFrequency - making the school call`)
-
-    const id = req.params.id
-    let { frequency } = req.body
-
-    const findStudent = await models.students.findOne({ where: { id: id } })
-
-    if (frequency.absence === undefined) {
-      frequency = { ...frequency, absence: 0 }
-    }
-
-    if (!frequency.classTheme || !frequency.classesGiven) {
-      return res.status(400).send({
-        error: {
-          message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
-        }
-      })
-    }
-
-    if (findStudent) {
-      const classThemeFrequency = findStudent.frequency.filter(item =>
-        (item.name === frequency.classTheme)
-      )
-
-      if (classThemeFrequency.length !== 0) {
-        classThemeFrequency[0].classesGiven += frequency.classesGiven
-        classThemeFrequency[0].absence += frequency.absence
-
-        const updatedFrequency = findStudent.frequency.map(item => {
-          return item.name === classThemeFrequency.name ? classThemeFrequency : item
-        })
-
-        await models.students.update({
-          frequency: updatedFrequency,
-        }, { where: { id: id } })
-
-        res.status(200).send(await models.students.findOne({ where: { id: id } }))
-      } else {
-        res.status(409).send({
-          error: {
-            message: 'Essa matéria não existe para esse aluno',
-          }
-        })
-      }
-    } else {
-      res.status(404).send({
-        error: {
-          message: 'Nenhum aluno foi encontrado. Não foi possível concluir a chamada',
-        }
-      })
-    }
-  } catch (err) {
-    logger.error(`Failed to update frequency in students - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

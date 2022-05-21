@@ -19,11 +19,11 @@ router.post('/addTeachers/:idClass', login, ClassController.addTeachers)
 router.put('/updateTeacher/:idClass/:idUser', login, ClassController.updateTeacher)
 router.delete('/deleteTeacher/:idClass/:idUser', login, ClassController.deleteTeacher)
 
-//update lessons column
 router.post('/updateLessons/:idClass', login, ClassController.updateLessons)
 
-//update classTheme column
 router.post('/updateClassThemes/:idClass', login, ClassController.updateClassThemes)
+
+router.put('/updateFrequency/:idClass', login, ClassController.updateFrequency)
 
 router.put('/defineGangs/:idClass/', login, ClassController.defineGangs)
 

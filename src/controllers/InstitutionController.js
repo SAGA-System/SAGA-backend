@@ -1,5 +1,6 @@
 const logger = require('../resources/logger')
 const dataValidator = require('../resources/dataValidator')
+
 const initModels = require('../models/init-models')
 const db = require('../models/db')
 const models = initModels(db)

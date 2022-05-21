@@ -28,14 +28,6 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(255),
       allowNull: false
     },
-    gang: {
-      type: DataTypes.STRING(10),
-      allowNull: false
-    },
-    frequency: {
-      type: DataTypes.JSON,
-      allowNull: false
-    }
   }, {
     sequelize,
     tableName: 'students',

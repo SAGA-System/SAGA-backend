@@ -7,7 +7,6 @@ router.get('/', login, TeachersController.index)
 router.get('/:id', login, TeachersController.show)
 router.post('/', login, TeachersController.store)
 router.put('/:id', login, TeachersController.update)
-router.delete('/:id', login, TeachersController.destroy)
 
 //update lessons column
 router.post('/addLessons/:id', login, TeachersController.addLessons)

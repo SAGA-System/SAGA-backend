@@ -1,8 +1,10 @@
+const jwt = require('jsonwebtoken')
+
 const logger = require('../resources/logger')
+
 const initModels = require('../models/init-models')
 const db = require('../models/db') 
 const models = initModels(db)
-const jwt = require('jsonwebtoken')
 
 exports.index = async (req, res) => {
   try {
@@ -142,28 +144,6 @@ exports.update = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update teacher by id - Error: ${err.message}`)
-
-    return res.status(500).send({
-      error: {
-        message: 'Ocorreu um erro interno do servidor'
-      }
-    })
-  }
-}
-
-exports.destroy = async (req, res) => {
-  try {
-    logger.info(`TeachersController/destroy - delete teacher by id`)
-
-    const id = req.params.id
-
-    await models.teachers.destroy({ where: { id: id } })
-
-    res.status(200).send({
-      message: 'Professor deletado com sucesso'
-    })
-  } catch (err) {
-    logger.error(`Failed to delete teacher by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

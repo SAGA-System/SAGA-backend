@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const axios = require('axios')
 const crypto = require('crypto')
 
+const api = require('../../config/api')
 const logger = require('../resources/logger')
 const normalizer = require('../resources/normalizer')
 const dataValidator = require('../resources/dataValidator')
@@ -165,40 +165,21 @@ exports.store = async (req, res) => {
 
           try {
             if (flowType === 4) {
-              await axios({
-                method: 'post',
-                url: process.env.URL_CREATE_TEACHERS,
-                headers: { authorization: token },
-                data: {
-                  idUser: user.id,
-                  speciality: speciality,
-                }
-              });
+              await api.post('/teacher', {
+                idUser: user.id,
+                speciality: speciality,
+              }, { headers: { authorization: token } });
             } else if (flowType === 6) {
-              await axios({
-                method: 'post',
-                url: process.env.URL_CREATE_STUDENTS,
-                headers: { authorization: token },
-                data: {
-                  idUser: user.id,
-                  idClass: idClass,
-                  ra: ra,
-                  schoolYear: schoolYear,
-                  situation: situation,
-                }
-              });
-              await axios({
-                method: 'post',
-                url: `${process.env.URL_ADD_STUDENTS}/${idClass}`,
-                headers: { authorization: token },
-                data: {
-                  students: {
-                    id: user.id,
-                    name: user.name,
-                    ra: ra
-                  }
-                }
-              });
+              await api.post('/student', {
+                idUser: user.id,
+                idClass: idClass,
+                ra: ra,
+                schoolYear: schoolYear,
+                situation: situation,
+              }, { headers: { authorization: token } });
+              await api.post('/class/addStudents', {
+                idUser: user.id,
+              }, { headers: { authorization: token } });
             }
           } catch (err) {
             await models.users.destroy({ where: { id: user.id } })
@@ -289,14 +270,9 @@ exports.update = async (req, res) => {
           }).some(elem => elem === true))
 
           for (let i = 0; i < ids.length; i++) {
-            await axios({
-              method: 'put',
-              url: `${process.env.URL_UPDATE_TEACHERS_FROM_CLASS}/${ids[i].id}/${id}`,
-              headers: { authorization: token },
-              data: {
-                name: name,
-              }
-            }).catch(err => {
+            await api.put(`/class/updateTeacher/${ids[i].id}/${id}`, {
+              name: name
+            }, { headers: { authorization: token } }).catch(err => {
               logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
 
               return res.status(500).send({
@@ -314,14 +290,9 @@ exports.update = async (req, res) => {
           }).some(elem => elem === true))
 
           for (let i = 0; i < ids.length; i++) {
-            await axios({
-              method: 'put',
-              url: `${process.env.URL_UPDATE_STUDENTS_FROM_CLASS}/${ids[i].id}/${id}`,
-              headers: { authorization: token },
-              data: {
-                name: name,
-              }
-            }).catch(err => {
+            await api.put(`/class/updateStudent/${ids[i].id}/${id}`, {
+              name: name,
+            }, { headers: { authorization: token } }).catch(err => {
               logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
 
               return res.status(500).send({
@@ -363,10 +334,10 @@ exports.destroy = async (req, res) => {
 
     const token = req.headers.authorization
 
-    const findUser = await models.users.findAll({ where: { id: id } })
+    const findUser = await models.users.findOne({ where: { id: id } })
 
-    if ((findUser[0].flowType === 4) || (findUser[0].flowType === 6)) {
-      const flowType = findUser[0].flowType
+    if (findUser && (findUser.flowType === 4 || findUser.flowType === 6)) {
+      const flowType = findUser.flowType
       const Classes = await models.class_.findAll()
 
       const ids = Classes.filter(({ teachers, students }) => flowType === 4 ? teachers.length > 0 && teachers.map(item => {
@@ -376,15 +347,9 @@ exports.destroy = async (req, res) => {
       }).some(elem => elem === true))
 
       for (let i = 0; i < ids.length; i++) {
-        await axios({
-          method: 'delete',
-          url: `${flowType === 4 ? process.env.URL_DELETE_TEACHERS_FROM_CLASS : process.env.URL_DELETE_STUDENTS_FROM_CLASS}/${ids[i].id}/${id}`,
-          headers: { authorization: token },
-        });
+        await api.delete(`/class/delete${flowType === 4 ? 'Teacher' : 'Student'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
       }
-    }
 
-    if (findUser.length > 0) {
       await models.users.destroy({ where: { id: id } })
 
       return res.status(200).send({
@@ -393,7 +358,7 @@ exports.destroy = async (req, res) => {
     } else {
       return res.status(404).send({
         error: {
-          message: 'Usuário não encontrada ou já deletado'
+          message: 'Usuário não encontrado ou já deletado'
         }
       })
     }
