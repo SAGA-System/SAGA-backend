@@ -7,6 +7,7 @@ const institutionRoutes = require('./src/routes/institution')
 const classRoutes = require('./src/routes/class')
 const teachersRoutes = require('./src/routes/teachers')
 const studentRoutes = require('./src/routes/students')
+const permissionRoutes = require('./src/routes/permission')
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json())
@@ -16,6 +17,7 @@ app.use('/institution', institutionRoutes)
 app.use('/class', classRoutes)
 app.use('/teacher', teachersRoutes)
 app.use('/student', studentRoutes)
+app.use('/permission', permissionRoutes)
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
