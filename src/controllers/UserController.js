@@ -109,6 +109,39 @@ exports.store = async (req, res) => {
     // 5 - pais
     // 6 - aluno
 
+    /*
+    ADD_USERS
+EDIT_USERS
+EDIT_YOUR_USER
+INACTIVATE_USERS
+DELETE_USERS
+LIST_USERS
+LIST_STUDENTS
+LIST_TEACHERS
+EDIT_USER_PERMISSIONS
+CHANGE_CLASS_STUDENT
+ADD_PERMISSIONS
+CREATE_INSTITUTIONS
+EDIT_INSTITUTIONS
+EDIT_YOUR_INSTITUTION
+INACTIVATE_INSTITUTIONS
+DELETE_INSTITUTION
+ADD_CLASSES
+EDIT_CLASSES
+DELETE_CLASSES
+    */
+
+    const roles = [{
+      admin: [],
+      principal: [],
+      generalCoordinator: [],
+      pedagogicalCoordinator: [],
+      courseCoordinator: [],
+      teacher: [],
+      parents: [],
+      student: []
+    }]
+
     if (!idInstitution || !name || !password || !cpf || !rg || !allPermissions ||
       !flowType || !email || !phone || !street || !number || !district || !city ||
       flowType === 4 && (!speciality) || flowType === 6 && (!idClass || !ra || !schoolYear || !situation)) {
