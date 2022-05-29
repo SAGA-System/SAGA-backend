@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken')
+const moment = require('moment')
 
 const logger = require('../resources/logger')
 const normalizer = require('../resources/normalizer')
@@ -177,6 +178,76 @@ exports.update = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update student by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.justifyAbsences = async (req, res) => {
+  try {
+    logger.info(`studentsController/justifyAbsences - justify absences on specific days`)
+
+    const idStudent = req.params.idStudent
+    const idClass = req.params.idClass
+
+    let { startDate, endDate, justify } = req.body
+
+    startDate = new Date(startDate).setHours(0, 0, 0, 0)
+    startDate = moment(startDate).format('YYYY-MM-DD HH:mm:ss')
+
+    endDate = new Date(endDate).setHours(0, 0, 0, 0)
+    endDate = moment(endDate).format('YYYY-MM-DD HH:mm:ss')
+
+    const findStudent = await models.students.findAll({ where: { id: idStudent } })
+    const findAbsences = await models.schoolcalls.findAll({ where: { idClass: idClass } })
+
+    if (findStudent.length !== 0) {
+      if (findAbsences.length !== 0) {
+        let absences = findAbsences.filter(item =>
+          moment(item.date).format('YYYY-MM-DD HH:mm:ss') >= startDate &&
+          moment(item.date).format('YYYY-MM-DD HH:mm:ss') <= endDate &&
+          item.absents.map(item => {
+            item.idStudent === Number(idStudent) ? true : false
+          })
+        )
+
+        absences.map(({ absents }) => {
+          for (a of absents) {
+            if (a.idStudent === Number(idStudent)) {
+              a.justification = justify
+            } else {
+              a
+            }
+          }
+        })
+
+        for (a of absences) {
+          await models.schoolcalls.update({
+            absents: a.absents
+          }, { where: { id: a.id } })
+        }
+
+        res.status(200).send({ message: 'Faltas justificadas com sucesso!' })
+      } else {
+        res.status(404).send({
+          error: {
+            message: 'Nenhuma falta foi encontrada para ser justificada.',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhum estudante foi encontrado. Não foi possível concluir a atualização',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to justify absences in student by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

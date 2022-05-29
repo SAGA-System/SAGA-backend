@@ -846,8 +846,8 @@ exports.updateFrequency = async (req, res) => {
 
     students = updatedStudents
 
-    frequency.date = new Date(Number(frequency.date)).setHours(0, 0, 0, 0)
-    frequency.date = moment(Number(frequency.date)).format('YYYY-MM-DD HH:mm:ss')
+    frequency.date = new Date(frequency.date).setHours(0, 0, 0, 0)
+    frequency.date = moment(frequency.date).format('YYYY-MM-DD HH:mm:ss')
 
     if (students.length !== 0) {
       const classThemeFrequency = students[0].frequency.filter(item =>
