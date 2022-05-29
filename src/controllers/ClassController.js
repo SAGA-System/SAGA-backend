@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken')
+const moment = require('moment')
 
 const logger = require('../resources/logger')
 const normalizer = require('../resources/normalizer')
@@ -773,7 +774,8 @@ exports.defineGangs = async (req, res) => {
       })
 
       for (u of updatedStudents) {
-        const student = await models.studentclasses.findOne({ where: {idClass: idClass },
+        const student = await models.studentclasses.findOne({
+          where: { idClass: idClass },
           include: {
             model: models.students,
             as: 'idStudent_student',
@@ -820,15 +822,32 @@ exports.updateFrequency = async (req, res) => {
     const idClass = req.params.idClass
     let { frequency } = req.body
 
-    const students = await models.studentclasses.findAll({ where: { idClass: idClass } })
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
 
-    if (!frequency.classTheme || !frequency.classesGiven || !frequency.absences) {
+    let students = await models.studentclasses.findAll({ where: { idClass: idClass } })
+
+    if (!frequency.classTheme || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
         }
       })
     }
+
+    let updatedStudents = []
+    for (s of students) {
+      const studentExists = frequency.absences.filter(({ idStudent }) => idStudent === s.idStudent)
+
+      if (studentExists.length !== 0) {
+        updatedStudents.push(s)
+      }
+    }
+
+    students = updatedStudents
+
+    frequency.date = new Date(Number(frequency.date)).setHours(0, 0, 0, 0)
+    frequency.date = moment(Number(frequency.date)).format('YYYY-MM-DD HH:mm:ss')
 
     if (students.length !== 0) {
       const classThemeFrequency = students[0].frequency.filter(item =>
@@ -862,6 +881,69 @@ exports.updateFrequency = async (req, res) => {
           await models.studentclasses.update({
             frequency: updatedFrequency,
           }, { where: { idStudent: s.idStudent, idClass: idClass } })
+        }
+
+        const absentStudents = []
+        for (abs of frequency.absences) {
+          if (abs.absence) {
+            absentStudents.push({
+              idStudent: abs.idStudent,
+              absence: abs.absence,
+              justification: ""
+            })
+          }
+        }
+
+        const schoolCall = await models.schoolcalls.findOne({
+          where: {
+            idClass: idClass,
+            date: frequency.date,
+            classTheme: frequency.classTheme
+          }
+        })
+
+        if (schoolCall) {
+          const updatedDescription = schoolCall.description === frequency.description ?
+            schoolCall.description :
+            schoolCall.description + '\n' + frequency.description
+
+          const updatedAbsents = schoolCall.absents.map(({ idStudent, absence }) => {
+            for (item of frequency.absences) {
+              if (idStudent === item.idStudent) {
+                return {
+                  idStudent: idStudent,
+                  justification: "",
+                  absence: absence + item.absence,
+                }
+              }
+            }
+          })
+
+          for (student of frequency.absences) {
+            const absentStudentExists = updatedAbsents.filter(({ idStudent }) => idStudent === student.idStudent)
+
+            if (absentStudentExists.length === 0 && student.absence) {
+              updatedAbsents.push({
+                idStudent: student.idStudent,
+                absence: student.absence,
+                justification: ""
+              })
+            }
+          }
+
+          await models.schoolcalls.update({
+            description: updatedDescription,
+            absents: updatedAbsents
+          }, { where: { id: schoolCall.id } })
+        } else {
+          await models.schoolcalls.create({
+            idUser: tokenDecoded.id,
+            idClass: idClass,
+            classTheme: frequency.classTheme,
+            date: frequency.date,
+            description: frequency.description,
+            absents: absentStudents
+          })
         }
 
         res.status(200).send({ message: "Chamada realizada!" })

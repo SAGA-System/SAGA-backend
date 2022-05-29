@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('students', {
+  return sequelize.define('schoolcalls', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
@@ -15,22 +15,33 @@ module.exports = function(sequelize, DataTypes) {
         key: 'id'
       }
     },
-    ra: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      unique: "ra"
-    },
-    schoolYear: {
+    idClass: {
       type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'class',
+        key: 'id'
+      }
+    },
+    classTheme: {
+      type: DataTypes.STRING(255),
       allowNull: false
     },
-    situation: {
+    date: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    description: {
       type: DataTypes.STRING(255),
+      allowNull: false
+    },
+    absents: {
+      type: DataTypes.JSON,
       allowNull: false
     }
   }, {
     sequelize,
-    tableName: 'students',
+    tableName: 'schoolcalls',
     timestamps: true,
     indexes: [
       {
@@ -42,18 +53,17 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "ra",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "ra" },
-        ]
-      },
-      {
-        name: "Students_fk0",
+        name: "idUser",
         using: "BTREE",
         fields: [
           { name: "idUser" },
+        ]
+      },
+      {
+        name: "idClass",
+        using: "BTREE",
+        fields: [
+          { name: "idClass" },
         ]
       },
     ]
