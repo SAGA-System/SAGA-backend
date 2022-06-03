@@ -18,8 +18,8 @@ exports.index = async (req, res) => {
     const findClasses = await models.class_.findOne({ where: { idInstitution: findUser.idInstitution } })
 
     let evaluations = []
-    findClasses.map(({id}) => {
-      let evaluationPerClass = await models.evaluation.findAll({ where: { idClass: id }})
+    findClasses.map(({ id }) => {
+      let evaluationPerClass = await models.evaluation.findAll({ where: { idClass: id } })
       evaluationPerClass.map(item => {
         evaluations.push(item)
       })
@@ -51,7 +51,12 @@ exports.show = async (req, res) => {
 
     const id = req.params.id
 
-    const evaluation = await models.evaluation.findOne({ where: { id: id } })
+    const evaluation = await models.evaluation.findOne({
+      include: {
+        model: models.schoolcalls,
+        as: 'idSchoolCalls_schoolcalls'
+      }, where: { id: id }
+    })
 
     if (!evaluation) {
       return res.status(404).send({
