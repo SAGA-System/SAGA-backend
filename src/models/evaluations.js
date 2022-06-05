@@ -1,51 +1,39 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('evaluation', {
+  return sequelize.define('evaluations', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    idClass: {
+    idSchoolCall: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'class',
+        model: 'schoolcalls',
         key: 'id'
       }
     },
-    idTeacher: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'teachers',
-        key: 'id'
-      }
+    description: {
+      type: DataTypes.STRING(255),
+      allowNull: false
     },
     method: {
       type: DataTypes.STRING(255),
       allowNull: false
     },
-    description: {
+    instruments: {
       type: DataTypes.STRING(255),
-      allowNull: true
-    },
-    minDate: {
-      type: DataTypes.DATEONLY,
       allowNull: false
     },
-    maxDate: {
-      type: DataTypes.DATEONLY,
-      allowNull: false
-    },
-    period: {
-      type: DataTypes.DATEONLY,
+    grades: {
+      type: DataTypes.JSON,
       allowNull: false
     }
   }, {
     sequelize,
-    tableName: 'evaluation',
+    tableName: 'evaluations',
     timestamps: true,
     indexes: [
       {
@@ -57,17 +45,10 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "Evaluation_fk0",
+        name: "idSchoolCall",
         using: "BTREE",
         fields: [
-          { name: "idClass" },
-        ]
-      },
-      {
-        name: "Evaluation_fk1",
-        using: "BTREE",
-        fields: [
-          { name: "idTeacher" },
+          { name: "idSchoolCall" },
         ]
       },
     ]

@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken')
 
 const logger = require('../resources/logger')
-const normalizer = require('../resources/normalizer')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
@@ -15,14 +14,23 @@ exports.index = async (req, res) => {
     const tokenDecoded = jwt.decode(token)
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
-    const findClasses = await models.class_.findOne({ where: { idInstitution: findUser.idInstitution } })
 
-    let evaluations = []
-    findClasses.map(({ id }) => {
-      let evaluationPerClass = await models.evaluation.findAll({ where: { idClass: id } })
-      evaluationPerClass.map(item => {
-        evaluations.push(item)
-      })
+    const evaluations = await models.evaluations.findAll({
+      include: {
+        model: models.schoolcalls,
+        as: 'idSchoolCall_schoolcall',
+        include: {
+          model: models.class_,
+          as: 'idClass_class',
+          where: {
+            idInstitution: findUser.idInstitution
+          }
+        }
+      }
+    })
+
+    evaluations.map(item => {
+      delete item.dataValues.idSchoolCall_schoolcall
     })
 
     if (evaluations.length === 0) {
@@ -51,10 +59,10 @@ exports.show = async (req, res) => {
 
     const id = req.params.id
 
-    const evaluation = await models.evaluation.findOne({
+    let evaluation = await models.evaluations.findOne({
       include: {
         model: models.schoolcalls,
-        as: 'idSchoolCalls_schoolcalls'
+        as: 'idSchoolCall_schoolcall'
       }, where: { id: id }
     })
 
@@ -83,16 +91,13 @@ exports.store = async (req, res) => {
     logger.info(`evaluationController/store - create evaluation`)
 
     let {
-      idUser,
-      idClass,
-      ra,
-      schoolYear,
-      situation,
+      idSchoolCall,
+      description,
+      method,
+      instruments
     } = req.body
 
-    ra = normalizer.removeMask(ra)
-
-    if (!idUser || !idClass || !ra || !schoolYear || !situation) {
+    if (!idSchoolCall || !description || !method || !instruments) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -100,44 +105,47 @@ exports.store = async (req, res) => {
       })
     }
 
-    const findClass = await models.class_.findOne({ where: { id: idClass } })
+    const findSchoolCall = await models.schoolcalls.findOne({ where: { id: idSchoolCall } })
 
-    const modifyCourses = findClass.classTheme.map(({ name, totalClasses }) => {
+    const students = await models.studentclasses.findAll({
+      include: {
+        model: models.students,
+        as: 'idStudent_student',
+        include: {
+          model: models.users,
+          as: 'idUser_user'
+        }
+      },
+      where: { idClass: findSchoolCall.idClass }
+    })
+
+    const evaluatedStudents = students.map(({ idStudent_student }) => {
       return {
-        name,
-        totalClasses,
-        classesGiven: 0,
-        absence: 0
+        idUser: idStudent_student.idUser,
+        name: idStudent_student.idUser_user.name,
+        grade: ''
       }
     })
 
-    Object.assign(findClass, { classTheme: modifyCourses });
-
-    const evaluationExists = await models.evaluation.findAll({ where: { ra: ra } })
+    const evaluationExists = await models.evaluations.findAll({ where: { idSchoolCall: idSchoolCall, method: method, instruments: instruments } })
 
     if (evaluationExists.length === 0) {
-      const newStudent = await models.evaluation.create({
-        idUser: idUser,
-        ra: ra,
-        schoolYear: schoolYear,
-        situation: situation,
-      })
-
-      await models.studentclasses.create({
-        idStudent: newStudent.id,
-        idClass: idClass,
-        gang: '',
-        frequency: findClass.classTheme
+      const newEvaluation = await models.evaluations.create({
+        idSchoolCall: idSchoolCall,
+        description: findSchoolCall.description !== description ? description : findSchoolCall.description,
+        method: method,
+        instruments: instruments,
+        grades: evaluatedStudents
       })
 
       res.status(201).send({
         message: 'Avaliação criada com sucesso',
-        newStudent
+        newEvaluation
       })
     } else {
       return res.status(409).send({
         error: {
-          message: 'Já existe um usuário na plataforma com o ra informado'
+          message: 'Já existe uma avaliação na plataforma com as credenciais informadas'
         }
       })
     }
@@ -159,26 +167,100 @@ exports.update = async (req, res) => {
 
     const id = req.params.id
 
-    const { schoolYear, situation } = req.body
+    const { description, method, instruments } = req.body
 
-    const findEvaluation = await models.evaluation.findAll({ where: { id: id } })
+    const findEvaluation = await models.evaluations.findAll({ where: { id: id } })
 
     if (findEvaluation.length !== 0) {
-      await models.evaluation.update({
-        schoolYear: schoolYear,
-        situation: situation,
+      await models.evaluations.update({
+        description: description,
+        method: method,
+        instruments: instruments
       }, { where: { id: id } })
 
-      res.status(200).send(await models.evaluation.findOne({ where: { id: id } }))
+      res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
     } else {
       res.status(404).send({
         error: {
-          message: 'Nenhuma avaliação foi encontrado. Não foi possível concluir a atualização',
+          message: 'Nenhuma avaliação foi encontrada. Não foi possível concluir a atualização',
         }
       })
     }
   } catch (err) {
     logger.error(`Failed to update evaluation by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.destroy = async (req, res) => {
+  try {
+    logger.info(`evaluationController/destroy - delete evaluation`)
+    const id = req.params.id;
+
+    const findEvaluation = await models.evaluations.findAll({ where: { id: id } })
+
+    if (findEvaluation.length !== 0) {
+      await models.evaluations.destroy({ where: { id: id } })
+
+      res.status(200).send({
+        message: 'Avaliação deletada com sucesso'
+      })
+    } else {
+      return res.status(404).send({
+        error: {
+          message: 'Avaliação não encontrada ou já deletada'
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to delete evaluation by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.assignGrades = async (req, res) => {
+  try {
+    logger.info(`evaluationController/assignGrades - assign student grades in the assessment`)
+    const id = req.params.id;
+
+    const { grades } = req.body
+
+    const findEvaluation = await models.evaluations.findOne({ where: { id: id } })
+
+    if (findEvaluation) {
+      const verifyGrades = grades.filter(item => !item.idUser || !item.name)
+      if ((grades.length === findEvaluation.grades.length) && (verifyGrades.length === 0)) {
+        await models.evaluations.update({
+          grades: grades,
+        }, { where: { id: id } })
+
+        res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
+      } else {
+        res.status(400).send({
+          error: {
+            message: 'Faltam informações. Não foi possível atribuir as notas',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma avaliação foi encontrada. Não foi possível atribuir as notas',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to assign student grades - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
