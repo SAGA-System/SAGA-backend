@@ -27,6 +27,10 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(255),
       allowNull: false
     },
+    gang: {
+      type: DataTypes.STRING(255),
+      allowNull: false
+    },
     date: {
       type: DataTypes.DATE,
       allowNull: false

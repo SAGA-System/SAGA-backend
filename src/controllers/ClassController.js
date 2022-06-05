@@ -825,7 +825,9 @@ exports.updateFrequency = async (req, res) => {
     const token = req.headers.authorization.slice(7)
     const tokenDecoded = jwt.decode(token)
 
-    let students = await models.studentclasses.findAll({ where: { idClass: idClass } })
+    let students = frequency.gang ?
+      await models.studentclasses.findAll({ where: { idClass: idClass, gang: frequency.gang } }) :
+      await models.studentclasses.findAll({ where: { idClass: idClass } })
 
     if (!frequency.classTheme || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
       return res.status(400).send({
@@ -885,7 +887,7 @@ exports.updateFrequency = async (req, res) => {
 
         const absentStudents = []
         for (abs of frequency.absences) {
-          if (abs.absence) {
+          if (abs.absence && students.filter(({ idStudent }) => idStudent === abs.idStudent).length !== 0) {
             absentStudents.push({
               idStudent: abs.idStudent,
               absence: abs.absence,
@@ -898,7 +900,8 @@ exports.updateFrequency = async (req, res) => {
           where: {
             idClass: idClass,
             date: frequency.date,
-            classTheme: frequency.classTheme
+            classTheme: frequency.classTheme,
+            gang: frequency.gang || ""
           }
         })
 
@@ -907,9 +910,9 @@ exports.updateFrequency = async (req, res) => {
             schoolCall.description :
             schoolCall.description + '\n' + frequency.description
 
-          const updatedAbsents = schoolCall.absents.map(({ idStudent, absence }) => {
+          let updatedAbsents = schoolCall.absents.map(({ idStudent, absence }) => {
             for (item of frequency.absences) {
-              if (idStudent === item.idStudent) {
+              if (idStudent === item.idStudent && absentStudents.filter(abs => idStudent === abs.idStudent).length !== 0) {
                 return {
                   idStudent: idStudent,
                   justification: "",
@@ -917,12 +920,14 @@ exports.updateFrequency = async (req, res) => {
                 }
               }
             }
-          })
+          }).filter(item => !!item)
 
           for (student of frequency.absences) {
-            const absentStudentExists = updatedAbsents.filter(({ idStudent }) => idStudent === student.idStudent)
-
-            if (absentStudentExists.length === 0 && student.absence) {
+            if (
+              students.filter(item => student.idStudent === item.idStudent && item.gang === frequency.gang).length !== 0 &&
+              updatedAbsents.filter(({ idStudent }) => idStudent === student.idStudent).length === 0 &&
+              student.absence
+            ) {
               updatedAbsents.push({
                 idStudent: student.idStudent,
                 absence: student.absence,
@@ -940,6 +945,7 @@ exports.updateFrequency = async (req, res) => {
             idUser: tokenDecoded.id,
             idClass: idClass,
             classTheme: frequency.classTheme,
+            gang: frequency.gang || "",
             date: frequency.date,
             description: frequency.description,
             absents: absentStudents
