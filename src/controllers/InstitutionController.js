@@ -87,6 +87,7 @@ exports.store = async (req, res) => {
           cnpj: cnpj,
           phone: phone,
           courses: [],
+          bimDates: [],
           street: street,
           number: number,
           district: district,
@@ -244,7 +245,7 @@ exports.addCourses = async (req, res) => {
       lessons.Saturday[i + 1] = ""
     }
 
-    Object.assign(courses, {lessons: lessons});
+    Object.assign(courses, { lessons: lessons });
 
     if (findInstitution) {
       let courseExistsInInstitution = false
@@ -365,7 +366,7 @@ exports.deleteCourse = async (req, res) => {
         index: null
       }
 
-      if(findInstitution.courses.filter((_, index) => index === Number(indexCourse)).length !== 0) {
+      if (findInstitution.courses.filter((_, index) => index === Number(indexCourse)).length !== 0) {
         courseExists = {
           value: true,
           index: indexCourse
@@ -396,6 +397,155 @@ exports.deleteCourse = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to delete course by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.addBimesters = async (req, res) => {
+  try {
+    logger.info(`InstitutionController/addBimesters - add bimesters to existing institution`)
+
+    const id = req.params.id
+    const { bimesters } = req.body
+
+    const findInstitution = await models.institution.findOne({ where: { id: id } })
+
+    if (
+      !bimesters.year ||
+      !bimesters.firstBim.startDate ||
+      !bimesters.firstBim.endDate ||
+      !bimesters.secondBim.startDate ||
+      !bimesters.secondBim.endDate ||
+      !bimesters.thirdBim.startDate ||
+      !bimesters.thirdBim.endDate ||
+      !bimesters.fourthBim.startDate ||
+      !bimesters.fourthBim.endDate
+    ) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    }
+
+    if (new Date(bimesters.firstBim.startDate) >= new Date(bimesters.firstBim.endDate) ||
+      new Date(bimesters.firstBim.endDate) > new Date(bimesters.secondBim.startDate) ||
+      new Date(bimesters.secondBim.startDate) >= new Date(bimesters.secondBim.endDate) ||
+      new Date(bimesters.secondBim.endDate) > new Date(bimesters.thirdBim.startDate) ||
+      new Date(bimesters.thirdBim.startDate) >= new Date(bimesters.thirdBim.endDate) ||
+      new Date(bimesters.thirdBim.endDate) > new Date(bimesters.fourthBim.startDate) ||
+      new Date(bimesters.fourthBim.startDate) >= new Date(bimesters.fourthBim.endDate)
+    ) {
+      return res.status(400).send({
+        error: {
+          message: 'As datas de inicio de bimestre devem ser menores que as de fim de bimestre'
+        }
+      })
+    }
+
+    if (findInstitution) {
+      if (findInstitution.bimDates.filter(({ year }) => year === bimesters.year && year).length === 0) {
+        findInstitution.bimDates.push(bimesters)
+
+        await models.institution.update({
+          bimDates: findInstitution.bimDates,
+        }, { where: { id: id } })
+
+        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+      } else {
+        res.status(409).send({
+          error: {
+            message: 'Já existem bimestres cadastrados no ano informado',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada. Não foi possível concluir o cadastro',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to add bimesters in institution - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.updateBimesters = async (req, res) => {
+  try {
+    logger.info(`InstitutionController/updateBimesters - update a bimester from an existing institution`)
+
+    const id = req.params.id
+    const yearToEdit = req.params.year
+
+    const { bimester } = req.body
+
+    const findInstitution = await models.institution.findOne({ where: { id: id } })
+
+    if (findInstitution) {
+      if (findInstitution.bimDates.filter(({ year }) => Number(year) === Number(yearToEdit)).length !== 0) {
+        const bimestersUpdated = findInstitution.bimDates.map(({ firstBim, secondBim, thirdBim, fourthBim, year }) => {
+          console.log(fourthBim.startDate !== bimester.fourthBim.startDate)
+
+          return Number(year) === Number(yearToEdit) ? {
+            year,
+            firstBim: {
+              startDate: (bimester.firstBim && (firstBim.startDate !== bimester.firstBim.startDate)) ? bimester.firstBim.startDate : firstBim.startDate,
+              endDate: (bimester.firstBim && (firstBim.endDate !== bimester.firstBim.endDate)) ? bimester.firstBim.endDate : firstBim.endDate,
+            },
+            secondBim: {
+              startDate: (bimester.secondBim && (secondBim.startDate !== bimester.secondBim.startDate)) ? bimester.secondBim.startDate : secondBim.startDate,
+              endDate: (bimester.secondBim && (secondBim.endDate !== bimester.secondBim.endDate)) ? bimester.secondBim.endDate : secondBim.endDate,
+            },
+            thirdBim: {
+              startDate: (bimester.thirdBim && (thirdBim.startDate !== bimester.thirdBim.startDate)) ? bimester.thirdBim.startDate : thirdBim.startDate,
+              endDate: (bimester.thirdBim && (thirdBim.endDate !== bimester.thirdBim.endDate)) ? bimester.thirdBim.endDate : thirdBim.endDate,
+            },
+            fourthBim: {
+              startDate: (bimester.fourthBim && (fourthBim.startDate !== bimester.fourthBim.startDate)) ? bimester.fourthBim.startDate : fourthBim.startDate,
+              endDate: (bimester.fourthBim && (fourthBim.endDate !== bimester.fourthBim.endDate)) ? bimester.fourthBim.endDate : fourthBim.endDate,
+            },
+          } : {
+            year,
+            firstBim,
+            secondBim,
+            thirdBim,
+            fourthBim
+          }
+        })
+
+        await models.institution.update({
+          bimDates: bimestersUpdated,
+        }, { where: { id: id } })
+
+        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+      } else {
+        res.status(404).send({
+          error: {
+            message: 'Não existem bimestres nessa instituição para o ano informado',
+          }
+        })
+      }
+    } else {
+      res.status(404).send({
+        error: {
+          message: 'Nenhuma instituição foi encontrada. Não foi possível concluir a atualização',
+        }
+      })
+    }
+  } catch (err) {
+    logger.error(`Failed to update bimesters in institution - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

@@ -31,6 +31,10 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(255),
       allowNull: false
     },
+    bimester: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+    },
     date: {
       type: DataTypes.DATE,
       allowNull: false

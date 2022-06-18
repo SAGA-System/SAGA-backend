@@ -7,11 +7,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    idStudent: {
+    idStudentClasses: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'students',
+        model: 'studentclasses',
         key: 'id'
       }
     },
@@ -20,14 +20,6 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       references: {
         model: 'teachers',
-        key: 'id'
-      }
-    },
-    idClass: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'class',
         key: 'id'
       }
     },
@@ -81,24 +73,17 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "Bulletin_fk0",
+        name: "bulletin_ibfk_1",
         using: "BTREE",
         fields: [
-          { name: "idStudent" },
+          { name: "idStudentClasses" },
         ]
       },
       {
-        name: "Bulletin_fk1",
+        name: "Bulletin_ibfk_2",
         using: "BTREE",
         fields: [
           { name: "idTeacher" },
-        ]
-      },
-      {
-        name: "Bulletin_fk2",
-        using: "BTREE",
-        fields: [
-          { name: "idClass" },
         ]
       },
     ]

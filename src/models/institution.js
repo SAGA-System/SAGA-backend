@@ -20,6 +20,10 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.JSON,
       allowNull: false
     },
+    bimDates: {
+      type: DataTypes.JSON,
+      allowNull: false
+    },
     phone: {
       type: DataTypes.STRING(255),
       allowNull: true

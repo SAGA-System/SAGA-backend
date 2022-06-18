@@ -26,8 +26,6 @@ function initModels(sequelize) {
   var userpermissions = _userpermissions(sequelize, DataTypes);
   var users = _users(sequelize, DataTypes);
 
-  bulletin.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
-  class_.hasMany(bulletin, { as: "bulletins", foreignKey: "idClass"});
   schoolcalls.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
   class_.hasMany(schoolcalls, { as: "schoolcalls", foreignKey: "idClass"});
   studentclasses.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
@@ -40,8 +38,8 @@ function initModels(sequelize) {
   permissions.hasMany(userpermissions, { as: "userpermissions", foreignKey: "idPermissions"});
   evaluations.belongsTo(schoolcalls, { as: "idSchoolCall_schoolcall", foreignKey: "idSchoolCall"});
   schoolcalls.hasMany(evaluations, { as: "evaluations", foreignKey: "idSchoolCall"});
-  bulletin.belongsTo(students, { as: "idStudent_student", foreignKey: "idStudent"});
-  students.hasMany(bulletin, { as: "bulletins", foreignKey: "idStudent"});
+  bulletin.belongsTo(studentclasses, { as: "idStudentClasses_studentclass", foreignKey: "idStudentClasses"});
+  studentclasses.hasMany(bulletin, { as: "bulletins", foreignKey: "idStudentClasses"});
   studentclasses.belongsTo(students, { as: "idStudent_student", foreignKey: "idStudent"});
   students.hasMany(studentclasses, { as: "studentclasses", foreignKey: "idStudent"});
   bulletin.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});

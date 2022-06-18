@@ -14,4 +14,8 @@ router.post('/addCourses/:id', login, InstitutionController.addCourses)
 router.put('/updateCourse/:id/:indexCourse', login, InstitutionController.updateCourse)
 router.delete('/deleteCourse/:id/:indexCourse', login, InstitutionController.deleteCourse)
 
+//update bimester dates column
+router.post('/addBimesters/:id', login, InstitutionController.addBimesters)
+router.put('/updateBimesters/:id/:year', login, InstitutionController.updateBimesters)
+
 module.exports = router
