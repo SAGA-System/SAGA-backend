@@ -1,1 +1,4 @@
 sequelize-auto -h localhost -d dbnewnsa -u root -x Senha2022 -p 3406  --dialect mysql -o src/models
+
+--acessando a pasta program files/mysql/mysql server/bin
+mysqldump -u root -p dbnewnsa -P 3406 > C:\Users\Zulian\Desktop\NewNSA\Backend\assets\backup.sql
