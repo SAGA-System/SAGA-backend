@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.28, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.29, for Win64 (x86_64)
 --
 -- Host: localhost    Database: dbnewnsa
 -- ------------------------------------------------------
--- Server version	8.0.28
+-- Server version	8.0.29
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -30,16 +30,20 @@ CREATE TABLE `bulletin` (
   `grade3Bim` varchar(10) DEFAULT NULL,
   `grade4Bim` varchar(10) DEFAULT NULL,
   `gradeFinal` varchar(10) DEFAULT NULL,
-  `totalClasses` int NOT NULL,
-  `classesGiven` int NOT NULL,
-  `absence` int NOT NULL,
-  `frequency` decimal(10,0) NOT NULL,
+  `totalClasses` int DEFAULT NULL,
+  `classesGiven` int DEFAULT NULL,
+  `absence` int DEFAULT NULL,
+  `frequency` decimal(10,0) DEFAULT NULL,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL,
   `idStudentClasses` int NOT NULL,
+  `evaluations1Bim` json DEFAULT NULL,
+  `evaluations2Bim` json DEFAULT NULL,
+  `evaluations3Bim` json DEFAULT NULL,
+  `evaluations4Bim` json DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `Bulletin_fk1` (`idTeacher`) USING BTREE,
-  KEY `bulletin_ibfk_1` (`idStudentClasses`),
+  KEY `bulletin_ibfk_1` (`idStudentClasses`) USING BTREE,
+  KEY `Bulletin_ibfk_2` (`idTeacher`) USING BTREE,
   CONSTRAINT `bulletin_ibfk_1` FOREIGN KEY (`idStudentClasses`) REFERENCES `studentclasses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `bulletin_ibfk_2` FOREIGN KEY (`idTeacher`) REFERENCES `teachers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -254,6 +258,30 @@ INSERT INTO `schoolcalls` VALUES (20,40,8,'lpl','2022-05-29 03:00:00','Aula de t
 UNLOCK TABLES;
 
 --
+-- Table structure for table `sequelizemeta`
+--
+
+DROP TABLE IF EXISTS `sequelizemeta`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sequelizemeta` (
+  `name` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+  PRIMARY KEY (`name`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `sequelizemeta`
+--
+
+LOCK TABLES `sequelizemeta` WRITE;
+/*!40000 ALTER TABLE `sequelizemeta` DISABLE KEYS */;
+INSERT INTO `sequelizemeta` VALUES ('20220508184724-update-foreignKeys-for-delete-cascade.js'),('20220513133823-remove-foreign-key-in-students.js'),('20220515013502-add-new-column-to-users-table.js'),('20220519120858-new-pivot-table-studentClasses.js'),('20220521164121-move-frequencyColumn-to-studentClasses.js'),('20220529145145-new-table-schoolCalls.js'),('20220603101827-ajustment-in-evaluation-table.js'),('20220605180151-add-column-gang-in-schoolcall.js'),('20220618165532-edit-tables-to-integrate-bulletin.js'),('20220622114657-new-columns-in-bulletin.js');
+/*!40000 ALTER TABLE `sequelizemeta` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `studentclasses`
 --
 
@@ -430,4 +458,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-06-18 17:27:15
+-- Dump completed on 2022-06-22 10:02:24
