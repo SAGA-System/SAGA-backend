@@ -9,34 +9,42 @@ module.exports = function(sequelize, DataTypes) {
     },
     idStudentClasses: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'studentclasses',
-        key: 'id'
-      }
+      allowNull: false
     },
     idTeacher: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'teachers',
-        key: 'id'
-      }
+      allowNull: false
     },
     grade1Bim: {
       type: DataTypes.STRING(10),
+      allowNull: true
+    },
+    evaluations1Bim: {
+      type: DataTypes.JSON,
       allowNull: true
     },
     grade2Bim: {
       type: DataTypes.STRING(10),
       allowNull: true
     },
+    evaluations2Bim: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
     grade3Bim: {
       type: DataTypes.STRING(10),
       allowNull: true
     },
+    evaluations3Bim: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
     grade4Bim: {
       type: DataTypes.STRING(10),
+      allowNull: true
+    },
+    evaluations4Bim: {
+      type: DataTypes.JSON,
       allowNull: true
     },
     gradeFinal: {
@@ -45,19 +53,19 @@ module.exports = function(sequelize, DataTypes) {
     },
     totalClasses: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: true
     },
     classesGiven: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: true
     },
     absence: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: true
     },
     frequency: {
       type: DataTypes.DECIMAL(10,0),
-      allowNull: false
+      allowNull: true
     }
   }, {
     sequelize,

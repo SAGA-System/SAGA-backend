@@ -6,6 +6,7 @@ var _files = require("./files");
 var _institution = require("./institution");
 var _permissions = require("./permissions");
 var _schoolcalls = require("./schoolcalls");
+var _sequelizemeta = require("./sequelizemeta");
 var _studentclasses = require("./studentclasses");
 var _students = require("./students");
 var _teachers = require("./teachers");
@@ -20,6 +21,7 @@ function initModels(sequelize) {
   var institution = _institution(sequelize, DataTypes);
   var permissions = _permissions(sequelize, DataTypes);
   var schoolcalls = _schoolcalls(sequelize, DataTypes);
+  var sequelizemeta = _sequelizemeta(sequelize, DataTypes);
   var studentclasses = _studentclasses(sequelize, DataTypes);
   var students = _students(sequelize, DataTypes);
   var teachers = _teachers(sequelize, DataTypes);
@@ -63,6 +65,7 @@ function initModels(sequelize) {
     institution,
     permissions,
     schoolcalls,
+    sequelizemeta,
     studentclasses,
     students,
     teachers,

@@ -10,9 +10,6 @@ module.exports = {
     port: process.env.MYSQL_PORT,
     dialect: "mysql",
 
-    migrationStorage: "json",
-    migrationStoragePath: path.resolve('src' , 'database' , 'historyMigrations.json'),
-
     logging: false
   },
   staging: {
