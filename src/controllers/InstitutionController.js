@@ -1,5 +1,8 @@
 const logger = require('../resources/logger')
 const dataValidator = require('../resources/dataValidator')
+const { convertToSlug } = require('../resources/normalizer')
+
+const api = require('../../config/api')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
@@ -227,48 +230,50 @@ exports.addCourses = async (req, res) => {
       })
     }
 
-    let lessons = {
-      Monday: {},
-      Tuesday: {},
-      Wednesday: {},
-      Thursday: {},
-      Friday: {},
-      Saturday: {},
+    if (courses.classTheme.map((item) =>
+      item.map(({ name, totalClasses }) => name && totalClasses ? true : false).includes(false)
+    ).includes(true)) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam campos no cadastro das matérias do curso. Verifique as informações enviadas e tente novamente'
+        }
+      })
     }
-
-    for (let i = 0; i < courses.lessonsPerDay; i++) {
-      lessons.Monday[i + 1] = ""
-      lessons.Tuesday[i + 1] = ""
-      lessons.Wednesday[i + 1] = ""
-      lessons.Thursday[i + 1] = ""
-      lessons.Friday[i + 1] = ""
-      lessons.Saturday[i + 1] = ""
-    }
-
-    Object.assign(courses, { lessons: lessons });
 
     if (findInstitution) {
-      let courseExistsInInstitution = false
+      let courseNameExists = false;
+      let courseDataExists = false
 
-      for (let i = 0; i < findInstitution.courses.length; i++) {
+      for (let c of findInstitution.courses) {
+        if (convertToSlug(c.name) === convertToSlug(courses.name)) {
+          courseNameExists = true
+        }
+
         if (
-          (findInstitution.courses[i].name === courses.name) &&
-          (findInstitution.courses[i].period === courses.period) &&
-          (Object.values(findInstitution.courses[i].lessons.Monday).length === courses.lessonsPerDay)
+          (convertToSlug(c.name) === convertToSlug(courses.name)) &&
+          (convertToSlug(c.period) === convertToSlug(courses.period)) &&
+          (c.lessonsPerDay === courses.lessonsPerDay)
         ) {
-          courseExistsInInstitution = true
+          courseDataExists = true
         }
       }
 
-      if (!courseExistsInInstitution) {
-        delete courses.lessonsPerDay
-        findInstitution.courses.push(courses)
+      if (!courseDataExists) {
+        if (!courseNameExists) {
+          findInstitution.courses.push(courses)
 
-        await models.institution.update({
-          courses: findInstitution.courses,
-        }, { where: { id: id } })
+          await models.institution.update({
+            courses: findInstitution.courses,
+          }, { where: { id: id } })
 
-        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+          res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+        } else {
+          res.status(409).send({
+            error: {
+              message: 'Já existe um curso nessa instituição com o nome fornecido',
+            }
+          })
+        }
       } else {
         res.status(409).send({
           error: {
@@ -295,28 +300,44 @@ exports.addCourses = async (req, res) => {
 }
 
 exports.updateCourse = async (req, res) => {
+  let coursesBeforeUpdate
+  const id = req.params.id
+
   try {
     logger.info(`InstitutionController/updateCourse - update a course from an existing institution`)
 
-    const id = req.params.id
     const indexCourse = req.params.indexCourse
+
+    const token = req.headers.authorization
 
     const { course } = req.body
 
     const findInstitution = await models.institution.findOne({ where: { id: id } })
 
+    coursesBeforeUpdate = findInstitution.courses
+
+    if (course.classTheme && course.classTheme.map((item) =>
+      item.map(({ name, totalClasses }) => name && totalClasses ? true : false).includes(false)
+    ).includes(true)) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam campos na edição das matérias do curso. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    }
+
     if (findInstitution) {
       if (findInstitution.courses.filter((_, index) => index === Number(indexCourse)).length !== 0) {
-        const coursesUpdated = findInstitution.courses.map(({ classTheme, name, lessons, period }, index) => {
+        const coursesUpdated = findInstitution.courses.map(({ classTheme, name, lessonsPerDay, period }, index) => {
           return index === Number(indexCourse) ? {
-            lessons,
             name: (course.name) && (name !== course.name) ? course.name : name,
             period: (course.period) && (period !== course.period) ? course.period : period,
+            lessonsPerDay: (course.lessonsPerDay) && (lessonsPerDay !== course.lessonsPerDay) ? course.lessonsPerDay : lessonsPerDay,
             classTheme: (course.classTheme) && (JSON.stringify(classTheme) !== JSON.stringify(course.classTheme)) ? course.classTheme : classTheme
           } : {
             name,
             period,
-            lessons,
+            lessonsPerDay,
             classTheme
           }
         })
@@ -325,7 +346,37 @@ exports.updateCourse = async (req, res) => {
           courses: coursesUpdated,
         }, { where: { id: id } })
 
-        res.status(200).send(await models.institution.findOne({ where: { id: id } }))
+        const updatedInstitution = await models.institution.findOne({ where: { id: id } })
+        const Classes = await models.class_.findAll({ where: { idInstitution: id } })
+
+        const ids = Classes.filter((item) => convertToSlug(item.dataValues.course) === convertToSlug(findInstitution.courses[indexCourse].name))
+
+        let errors = []
+
+        for (let classData of ids) {
+          await api.put(`/class/${classData.id}`, {
+            course: updatedInstitution.courses[indexCourse].name,
+            period: updatedInstitution.courses[indexCourse].period
+          }, { headers: { authorization: token } }).catch(err => {
+            logger.error(`Failed to update course of class - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+            errors.push(err?.response?.data?.error?.message || err.message)
+          });
+        }
+
+        if (errors.length > 0) {
+          await models.institution.update({
+            courses: findInstitution.courses
+          }, { where: { id: id } })
+
+          return res.status(500).send({
+            error: {
+              message: 'Ocorreu um erro interno do servidor'
+            }
+          })
+        }
+
+        res.status(200).send(updatedInstitution)
       } else {
         res.status(404).send({
           error: {
@@ -341,6 +392,10 @@ exports.updateCourse = async (req, res) => {
       })
     }
   } catch (err) {
+    await models.institution.update({
+      courses: coursesBeforeUpdate
+    }, { where: { id: id } })
+
     logger.error(`Failed to update courses in institution - Error: ${err.message}`)
 
     return res.status(500).send({
@@ -357,6 +412,8 @@ exports.deleteCourse = async (req, res) => {
 
     const id = req.params.id
     const indexCourse = req.params.indexCourse
+
+    const token = req.headers.authorization
 
     const findInstitution = await models.institution.findOne({ where: { id: id } })
 
@@ -379,6 +436,32 @@ exports.deleteCourse = async (req, res) => {
         await models.institution.update({
           courses: coursesUpdated,
         }, { where: { id: id } })
+
+        const Classes = await models.class_.findAll({ where: { idInstitution: id } })
+
+        const ids = Classes.filter((item) => convertToSlug(item.dataValues.course) === convertToSlug(findInstitution.courses[indexCourse].name))
+
+        let errors = []
+
+        for (let classData of ids) {
+          await api.delete(`/class/${classData.id}`, { headers: { authorization: token } }).catch(err => {
+            logger.error(`Failed to update course of class - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+            errors.push(err?.response?.data?.error?.message || err.message)
+          });
+        }
+
+        if (errors.length > 0) {
+          await models.institution.update({
+            courses: findInstitution.courses
+          }, { where: { id: id } })
+
+          return res.status(500).send({
+            error: {
+              message: 'Ocorreu um erro interno do servidor'
+            }
+          })
+        }
 
         res.status(200).send(await models.institution.findOne({ where: { id: id } }))
       } else {

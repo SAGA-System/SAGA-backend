@@ -107,6 +107,24 @@ exports.store = async (req, res) => {
       const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
 
       if (period.toLowerCase() === courseData[0].period.toLowerCase()) {
+        let lessons = {
+          Monday: {},
+          Tuesday: {},
+          Wednesday: {},
+          Thursday: {},
+          Friday: {},
+          Saturday: {},
+        }
+
+        for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
+          lessons.Monday[i + 1] = ""
+          lessons.Tuesday[i + 1] = ""
+          lessons.Wednesday[i + 1] = ""
+          lessons.Thursday[i + 1] = ""
+          lessons.Friday[i + 1] = ""
+          lessons.Saturday[i + 1] = ""
+        }
+
         const newClass = await models.class_.create({
           idInstitution: findInstitution.id,
           period: period,
@@ -114,7 +132,7 @@ exports.store = async (req, res) => {
           schoolYear: schoolYear,
           teachers: [],
           students: [],
-          lessons: courseData[0].lessons,
+          lessons: lessons,
           block: block,
           classNumber: classNumber,
           classTheme: courseData[0].classTheme[schoolYear - 1]
@@ -163,22 +181,57 @@ exports.update = async (req, res) => {
       classNumber
     } = req.body
 
-    const findClass = await models.class_.findAll({ where: { id: id } })
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
 
-    if (findClass.length !== 0) {
-      await models.class_.update({
-        period: period,
-        course: course,
-        schoolYear: schoolYear,
-        block: block,
-        classNumber: classNumber,
-      }, {
-        where: {
-          id: id
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
+
+    const findClass = await models.class_.findOne({ where: { id: id } })
+
+    if (findClass) {
+        const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
+
+        if (period ? 
+          normalizer.convertToSlug(period) === normalizer.convertToSlug(courseData[0].period) : 
+          normalizer.convertToSlug(findClass.period) === normalizer.convertToSlug(courseData[0].period)
+        ) {
+          let lessons = {
+            Monday: {},
+            Tuesday: {},
+            Wednesday: {},
+            Thursday: {},
+            Friday: {},
+            Saturday: {},
+          }
+
+          for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
+            lessons.Monday[i + 1] = ""
+            lessons.Tuesday[i + 1] = ""
+            lessons.Wednesday[i + 1] = ""
+            lessons.Thursday[i + 1] = ""
+            lessons.Friday[i + 1] = ""
+            lessons.Saturday[i + 1] = ""
+          }
+
+          await models.class_.update({
+            period: period,
+            course: course,
+            schoolYear: schoolYear,
+            block: block,
+            classNumber: classNumber,
+            lessons: lessons,
+            classTheme: courseData[0].classTheme[schoolYear - 1]
+          }, { where: { id: id } })
+
+          return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
+        } else {
+          return res.status(409).send({
+            error: {
+              message: 'Não existe modalidade do curso no turno solicitado',
+            }
+          })
         }
-      })
-
-      return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
     } else {
       return res.status(404).send({
         error: {
@@ -491,8 +544,8 @@ exports.addTeachers = async (req, res) => {
       for (let i = 0; i < findClass.teachers.length; i++) {
         if (
           (findClass.teachers[i].id === teachers.id) &&
-          (findClass.teachers[i].classTheme === teachers.classTheme) &&
-          (findClass.teachers[i].gang === teachers.gang)
+          (findClass.teachers[i].classTheme.toUpperCase() === teachers.classTheme.toUpperCase()) &&
+          (findClass.teachers[i].gang.toUpperCase() === teachers.gang.toUpperCase())
         ) {
           teachersExistsInClass = true
         }
@@ -510,6 +563,7 @@ exports.addTeachers = async (req, res) => {
         })
 
         teachers.name = user.idUser_user.name
+        teachers.gang = teachers.gang.toUpperCase()
         findClass.teachers.push(teachers)
 
         await models.class_.update({
@@ -549,8 +603,7 @@ exports.updateTeacher = async (req, res) => {
     const idClass = req.params.idClass
     const idUser = req.params.idUser
 
-    const { gang, classTheme } = req.body
-    const dataForUpdate = { gang, classTheme }
+    const dataForUpdate = req.body
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
@@ -568,7 +621,7 @@ exports.updateTeacher = async (req, res) => {
           return id === Number(idUser) ? {
             id,
             name,
-            gang: (dataForUpdate.gang) && (gang !== dataForUpdate.gang) ? dataForUpdate.gang : gang,
+            gang: (dataForUpdate.gang) && (gang !== dataForUpdate.gang) ? dataForUpdate.gang.toUpperCase() : gang.toUpperCase(),
             classTheme: (dataForUpdate.classTheme) && (classTheme !== dataForUpdate.classTheme) ? dataForUpdate.classTheme : classTheme,
           } : {
             id,
