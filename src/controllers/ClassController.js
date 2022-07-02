@@ -747,7 +747,64 @@ exports.updateLessons = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+    const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
+
+    if (!Monday || !Tuesday || !Wednesday || !Thursday || !Friday || !Saturday) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam dias para definir as aulas. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    }
+
     if (findClass) {
+      const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(findClass.course))
+
+      if (courseData.length === 0) {
+        return res.status(400).send({
+          error: {
+            message: 'Não foi possível encontrar o curso da classe na instituição'
+          }
+        })
+      }
+
+      const totalLessons = [
+        Object.values(Monday),
+        Object.values(Tuesday),
+        Object.values(Wednesday),
+        Object.values(Thursday),
+        Object.values(Friday),
+        Object.values(Saturday)
+      ]
+
+      const ClassThemes = findClass.classTheme.map(({ name }) => { return normalizer.convertToSlug(name) })
+
+      if (totalLessons.map(item => {
+        return item.length === courseData[0].lessonsPerDay
+      }).includes(false)) {
+        return res.status(400).send({
+          error: {
+            message: 'O número de aulas por dia está incorreto. Verifique a quantidade de aulas por dia e tente novamente'
+          }
+        })
+      }
+
+      if (totalLessons.map(item => {
+        return item.map(itemMap => {
+          return itemMap && (ClassThemes.includes(normalizer.convertToSlug(itemMap)))
+        }).includes(false)
+      }).includes(true)) {
+        return res.status(400).send({
+          error: {
+            message: 'As aulas informadas não estão previstas nesse curso. Verifique as informações enviadas e tente novamente'
+          }
+        })
+      }
+
       await models.class_.update({
         lessons: {
           Monday,
@@ -769,43 +826,6 @@ exports.updateLessons = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update lessons by id - Error: ${err.message}`)
-
-    return res.status(500).send({
-      error: {
-        message: 'Ocorreu um erro interno do servidor'
-      }
-    })
-  }
-}
-
-exports.updateClassThemes = async (req, res) => {
-  try {
-    logger.info(`ClassController/updateClassThemes - update class themes to existing class`)
-
-    const idClass = req.params.idClass
-
-    const {
-      classTheme
-    } = req.body
-
-    const findClass = await models.class_.findOne({ where: { id: idClass } })
-
-    if (findClass) {
-      await models.class_.update({
-        classTheme: classTheme
-      }, { where: { id: idClass } })
-
-      return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
-
-    } else {
-      return res.status(404).send({
-        error: {
-          message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
-        }
-      })
-    }
-  } catch (err) {
-    logger.error(`Failed to update class themes by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

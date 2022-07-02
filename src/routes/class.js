@@ -21,8 +21,7 @@ router.delete('/deleteTeacher/:idClass/:idUser', login, ClassController.deleteTe
 
 router.post('/updateLessons/:idClass', login, ClassController.updateLessons)
 
-// router.post('/updateClassThemes/:idClass', login, ClassController.updateClassThemes)
-
+// schoolCall
 router.put('/updateFrequency/:idClass', login, ClassController.updateFrequency)
 
 router.put('/defineGangs/:idClass/', login, ClassController.defineGangs)
