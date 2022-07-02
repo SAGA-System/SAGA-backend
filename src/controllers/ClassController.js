@@ -190,48 +190,58 @@ exports.update = async (req, res) => {
     const findClass = await models.class_.findOne({ where: { id: id } })
 
     if (findClass) {
-        const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
+      const courseData = course ?
+        findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course)) :
+        findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(findClass.course))
 
-        if (period ? 
-          normalizer.convertToSlug(period) === normalizer.convertToSlug(courseData[0].period) : 
-          normalizer.convertToSlug(findClass.period) === normalizer.convertToSlug(courseData[0].period)
-        ) {
-          let lessons = {
-            Monday: {},
-            Tuesday: {},
-            Wednesday: {},
-            Thursday: {},
-            Friday: {},
-            Saturday: {},
+      if (courseData.length === 0) {
+        return res.status(400).send({
+          error: {
+            message: 'O curso informado não existe',
           }
+        })
+      }
 
-          for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
-            lessons.Monday[i + 1] = ""
-            lessons.Tuesday[i + 1] = ""
-            lessons.Wednesday[i + 1] = ""
-            lessons.Thursday[i + 1] = ""
-            lessons.Friday[i + 1] = ""
-            lessons.Saturday[i + 1] = ""
-          }
-
-          await models.class_.update({
-            period: period,
-            course: course,
-            schoolYear: schoolYear,
-            block: block,
-            classNumber: classNumber,
-            lessons: lessons,
-            classTheme: courseData[0].classTheme[schoolYear - 1]
-          }, { where: { id: id } })
-
-          return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
-        } else {
-          return res.status(409).send({
-            error: {
-              message: 'Não existe modalidade do curso no turno solicitado',
-            }
-          })
+      if (period ?
+        normalizer.convertToSlug(period) === normalizer.convertoTSlug(courseData[0].period) :
+        normalizer.convertToSlug(findClass.period) === normalizer.convertToSlug(courseData[0].period)
+      ) {
+        let lessons = {
+          Monday: {},
+          Tuesday: {},
+          Wednesday: {},
+          Thursday: {},
+          Friday: {},
+          Saturday: {},
         }
+
+        for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
+          lessons.Monday[i + 1] = ""
+          lessons.Tuesday[i + 1] = ""
+          lessons.Wednesday[i + 1] = ""
+          lessons.Thursday[i + 1] = ""
+          lessons.Friday[i + 1] = ""
+          lessons.Saturday[i + 1] = ""
+        }
+
+        await models.class_.update({
+          period: period,
+          course: course,
+          schoolYear: schoolYear,
+          block: block,
+          classNumber: classNumber,
+          lessons: lessons,
+          classTheme: courseData[0].classTheme[schoolYear - 1]
+        }, { where: { id: id } })
+
+        return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
+      } else {
+        return res.status(409).send({
+          error: {
+            message: 'Não existe modalidade do curso no turno solicitado',
+          }
+        })
+      }
     } else {
       return res.status(404).send({
         error: {
@@ -240,6 +250,7 @@ exports.update = async (req, res) => {
       })
     }
   } catch (err) {
+    console.log(err)
     logger.error(`Failed to update class by id - Error: ${err.message}`)
 
     return res.status(500).send({

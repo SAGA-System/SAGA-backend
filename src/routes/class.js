@@ -21,7 +21,7 @@ router.delete('/deleteTeacher/:idClass/:idUser', login, ClassController.deleteTe
 
 router.post('/updateLessons/:idClass', login, ClassController.updateLessons)
 
-router.post('/updateClassThemes/:idClass', login, ClassController.updateClassThemes)
+// router.post('/updateClassThemes/:idClass', login, ClassController.updateClassThemes)
 
 router.put('/updateFrequency/:idClass', login, ClassController.updateFrequency)
 
