@@ -1,6 +1,6 @@
-# NewNSA
+# SAGA
 
-Repositório da aplicação **Backend** do sistema **NewNSA**, desenvolvido em 2022 para o TCC do Ensino Médio integrado ao técnico de Desenvolvimento de Sistemas(Novotec) na ETEC Prof Eudécio Luiz Vicente. 
+Repositório da aplicação **Backend** do sistema **SAGA**, desenvolvido em 2022 para o TCC do Ensino Médio integrado ao técnico de Desenvolvimento de Sistemas(Novotec) na ETEC Prof Eudécio Luiz Vicente. 
 
 ## Bibliotecas utilizadas
 
@@ -20,7 +20,7 @@ $ git clone https://github.com/CaduZulian/NewNSA.git
 
 # Acesse a pasta do projeto no terminal/cmd
 
-$ cd NewNSA/Backend
+$ cd NewNSA
 
 # Instale as dependências
 
@@ -30,7 +30,7 @@ $ npm install
 
 $ npm start
 
-# O servidor inciará na porta:3333 - acesse http://localhost:3333
+# O servidor iniciará na porta:3333 - acesse http://localhost:3333
 
 ```
 
