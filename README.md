@@ -10,17 +10,17 @@ Repositório da aplicação **Backend** do sistema **SAGA**, desenvolvido em 202
 - **[Sequelize](https://sequelize.org/)**
 - **[MySQL](https://github.com/sidorares/node-mysql2)**
 
-> Veja o arquivo [package.json](https://github.com/CaduZulian/NewNSA/blob/master/package.json)
+> Veja o arquivo [package.json](https://github.com/CaduZulian/SAGA-backend/blob/master/package.json)
 
 ##  Rodando o Back End (servidor)
 ```bash
 # Clone este repositório
 
-$ git clone https://github.com/CaduZulian/NewNSA.git
+$ git clone https://github.com/CaduZulian/SAGA-backend.git
 
 # Acesse a pasta do projeto no terminal/cmd
 
-$ cd NewNSA
+$ cd SAGA-backend
 
 # Instale as dependências
 
