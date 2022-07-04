@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken')
 const moment = require('moment')
 
 const logger = require('../resources/logger')
-const normalizer = require('../resources/normalizer')
+const { convertToSlug } = require('../resources/normalizer')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
@@ -104,7 +104,7 @@ exports.store = async (req, res) => {
     })
 
     if (findClasses.length === 0) {
-      const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course))
+      const courseData = findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(course))
 
       if (period.toLowerCase() === courseData[0].period.toLowerCase()) {
         let lessons = {
@@ -191,8 +191,8 @@ exports.update = async (req, res) => {
 
     if (findClass) {
       const courseData = course ?
-        findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(course)) :
-        findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(findClass.course))
+        findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(course)) :
+        findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(findClass.course))
 
       if (courseData.length === 0) {
         return res.status(400).send({
@@ -203,8 +203,8 @@ exports.update = async (req, res) => {
       }
 
       if (period ?
-        normalizer.convertToSlug(period) === normalizer.convertoTSlug(courseData[0].period) :
-        normalizer.convertToSlug(findClass.period) === normalizer.convertToSlug(courseData[0].period)
+        convertToSlug(period) === convertToSlug(courseData[0].period) :
+        convertToSlug(findClass.period) === convertToSlug(courseData[0].period)
       ) {
         let lessons = {
           Monday: {},
@@ -552,11 +552,11 @@ exports.addTeachers = async (req, res) => {
     if (findClass) {
       let teachersExistsInClass = false
 
-      for (let i = 0; i < findClass.teachers.length; i++) {
+      for (let teacher of findClass.teachers) {
         if (
-          (findClass.teachers[i].id === teachers.id) &&
-          (findClass.teachers[i].classTheme.toUpperCase() === teachers.classTheme.toUpperCase()) &&
-          (findClass.teachers[i].gang.toUpperCase() === teachers.gang.toUpperCase())
+          (teacher.id === teachers.id) &&
+          (convertToSlug(teacher.classTheme) === convertToSlug(teachers.classTheme)) &&
+          (convertToSlug(teacher.gang) === convertToSlug(teachers.gang))
         ) {
           teachersExistsInClass = true
         }
@@ -573,8 +573,27 @@ exports.addTeachers = async (req, res) => {
           }
         })
 
+        if(!user) {
+          return res.status(400).send({
+            error: {
+              message: 'O professor informado não está cadastrado no sistema'
+            }
+          })
+        }
+
         teachers.name = user.idUser_user.name
         teachers.gang = teachers.gang.toUpperCase()
+
+        const ClassThemes = findClass.classTheme.map(({ name }) => { return convertToSlug(name) })
+
+        if (!ClassThemes.includes(convertToSlug(teachers.classTheme))) {
+          return res.status(400).send({
+            error: {
+              message: 'A matéria informada não está prevista nesse curso'
+            }
+          })
+        }
+
         findClass.teachers.push(teachers)
 
         await models.class_.update({
@@ -683,22 +702,16 @@ exports.deleteTeacher = async (req, res) => {
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
-      let teacherExistsInClass = {
-        value: false,
-        id: null
-      }
+      let teacherExistsInClass = false
 
-      for (let i = 0; i < findClass.teachers.length; i++) {
-        if (findClass.teachers[i].id === Number(idUser)) {
-          teacherExistsInClass = {
-            value: true,
-            id: i
-          }
+      for (let teacher of findClass.teachers) {
+        if (teacher.id === Number(idUser)) {
+          teacherExistsInClass = true
         }
       }
 
-      if (teacherExistsInClass.value) {
-        const updatedTeachers = findClass.teachers.filter((_, index) => index !== teacherExistsInClass.id)
+      if (teacherExistsInClass) {
+        const updatedTeachers = findClass.teachers.filter(({ id }) => id !== Number(idUser))
 
         await models.class_.update({
           teachers: updatedTeachers,
@@ -762,7 +775,7 @@ exports.updateLessons = async (req, res) => {
     }
 
     if (findClass) {
-      const courseData = findInstitution.courses.filter((item) => normalizer.convertToSlug(item.name) === normalizer.convertToSlug(findClass.course))
+      const courseData = findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(findClass.course))
 
       if (courseData.length === 0) {
         return res.status(400).send({
@@ -781,7 +794,7 @@ exports.updateLessons = async (req, res) => {
         Object.values(Saturday)
       ]
 
-      const ClassThemes = findClass.classTheme.map(({ name }) => { return normalizer.convertToSlug(name) })
+      const ClassThemes = findClass.classTheme.map(({ name }) => { return convertToSlug(name) })
 
       if (totalLessons.map(item => {
         return item.length === courseData[0].lessonsPerDay
@@ -795,7 +808,7 @@ exports.updateLessons = async (req, res) => {
 
       if (totalLessons.map(item => {
         return item.map(itemMap => {
-          return itemMap && (ClassThemes.includes(normalizer.convertToSlug(itemMap)))
+          return itemMap && (ClassThemes.includes(convertToSlug(itemMap)))
         }).includes(false)
       }).includes(true)) {
         return res.status(400).send({
@@ -845,8 +858,8 @@ exports.defineGangs = async (req, res) => {
 
     if (findClass) {
       findClass.students.sort((a, b) => {
-        let x = normalizer.convertToSlug(a.name).toLowerCase()
-        let y = normalizer.convertToSlug(b.name).toLowerCase()
+        let x = convertToSlug(a.name).toLowerCase()
+        let y = convertToSlug(b.name).toLowerCase()
 
         return x === y ? 0 : x > y ? 1 : -1
       })
