@@ -3,20 +3,20 @@ const jwt = require('jsonwebtoken')
 const logger = require('../resources/logger')
 
 const initModels = require('../models/init-models')
-const db = require('../models/db') 
+const db = require('../models/db')
+const { convertToSlug } = require('../resources/normalizer')
 const models = initModels(db)
 
 exports.index = async (req, res) => {
   try {
     logger.info(`TeachersController/index - list all teachers`)
-    //await models.teachers.sync({alter: true})
 
     const token = req.headers.authorization.slice(7)
     const tokenDecoded = jwt.decode(token)
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
-    const teachers = await models.teachers.findOne({
+    const teachers = await models.teachers.findAll({
       include: {
         model: models.users,
         as: 'idUser_user',
@@ -34,9 +34,11 @@ exports.index = async (req, res) => {
       })
     }
 
-    delete teachers.dataValues.idUser_user
+    for (let teacher of teachers) {
+      delete teacher.dataValues.idUser_user
+    }
 
-    res.status(200).send(teachers)
+    return res.status(200).send(teachers)
   } catch (err) {
     logger.error(`Failed to list teachers - Error: ${err.message}`)
 
@@ -64,7 +66,7 @@ exports.show = async (req, res) => {
       })
     }
 
-    res.status(200).send(teachers)
+    return res.status(200).send(teachers)
   } catch (err) {
     logger.error(`Failed to list teacher by id - Error: ${err.message}`)
 
@@ -93,13 +95,22 @@ exports.store = async (req, res) => {
       })
     }
 
+    let lessons = {
+      "Monday": [],
+      "Tuesday": [],
+      "Wednesday": [],
+      "Thursday": [],
+      "Friday": [],
+      "Saturday": [],
+    }
+
     const newTeacher = await models.teachers.create({
       idUser: idUser,
       speciality: speciality,
-      lessons: []
+      lessons: lessons,
     })
 
-    res.status(201).send({
+    return res.status(201).send({
       message: 'Professor criado com sucesso',
       newTeacher
     })
@@ -134,9 +145,9 @@ exports.update = async (req, res) => {
         }
       })
 
-      res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
+      return res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma Professor foi encontrado. Não foi possível concluir a atualização',
         }
@@ -158,11 +169,17 @@ exports.addLessons = async (req, res) => {
     logger.info(`TeachersController/addLessons - add lessons to existing teacher`)
 
     const id = req.params.id
-    const { lessons } = req.body
+
+    let { lessons } = req.body
+
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
     const findTeacher = await models.teachers.findOne({ where: { id: id } })
 
-    if (!lessons.classTheme || !lessons.horary || !lessons.classroom || !lessons.day || !lessons.gang) {
+    if (!lessons.classTheme || !lessons.day || !lessons.lesson || !lessons.period || !lessons.classBlock || !lessons.classNumber) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -170,28 +187,81 @@ exports.addLessons = async (req, res) => {
       })
     }
 
-    if (findTeacher) {
-      const lessonExists = findTeacher.lessons.filter(item => 
-        (item.horary === lessons.horary) && (item.day === lessons.day)
-      ).length === 0 ? false : true
+    //capital first letter 
+    lessons.day = lessons.day[0].toUpperCase() + lessons.day.substring(1);
+    lessons.gang = lessons.gang ? lessons.gang.toUpperCase() : ''
+    lessons.classBlock = lessons.classBlock.toUpperCase()
+    lessons.period = lessons.period.toLowerCase()
 
-      if (!lessonExists) {
-        findTeacher.lessons.push(lessons)
+    if (findTeacher) {
+      if (!['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].includes(lessons.day)) {
+        return res.status(400).send({
+          error: {
+            message: 'O dia informado não é válido para o cadastro de aulas',
+          }
+        })
+      }
+
+      const classExists = await models.class_.findOne({
+        where: {
+          idInstitution: findUser.idInstitution,
+          period: lessons.period,
+          block: lessons.classBlock,
+          classNumber: lessons.classNumber
+        }
+      })
+
+      if (!classExists) {
+        return res.status(400).send({
+          error: {
+            message: 'A classe informada não existe',
+          }
+        })
+      }
+
+      const classThemes = classExists.classTheme.map(({ name }) => { return convertToSlug(name) })
+
+      if (!classThemes.includes(convertToSlug(lessons.classTheme))) {
+        return res.status(400).send({
+          error: {
+            message: 'A matéria informada não está prevista no curso atribuído a classe informada',
+          }
+        })
+      }
+
+      if (findTeacher.lessons[lessons.day].filter(item => item.period === lessons.period && item.lesson === lessons.lesson).length === 0) {
+        findTeacher.lessons[lessons.day].push({
+          classTheme: lessons.classTheme,
+          gang: lessons.gang || '',
+          lesson: lessons.lesson,
+          period: lessons.period,
+          classBlock: lessons.classBlock,
+          classNumber: lessons.classNumber,
+        })
+
+        if (findTeacher.lessons[lessons.day].length > 1) {
+          findTeacher.lessons[lessons.day].sort((a, b) => {
+            let x = convertToSlug(a.lesson).toLowerCase()
+            let y = convertToSlug(b.lesson).toLowerCase()
+
+            return x === y ? 0 : x > y ? 1 : -1
+          })
+        }
 
         await models.teachers.update({
           lessons: findTeacher.lessons,
         }, { where: { id: id } })
 
-        res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
+        return res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
       } else {
-        res.status(409).send({
+        return res.status(409).send({
           error: {
             message: 'Esse professor já possui uma aula no horário e dia informados',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhum professor foi encontrado. Não foi possível concluir o cadastro',
         }
@@ -213,44 +283,120 @@ exports.updateLessons = async (req, res) => {
     logger.info(`TeachersController/updateLessons - update a lesson from an existing teacher`)
 
     const id = req.params.id
-    const {horaryParams, dayParams} = req.params
+    let { day, period: periodParams, lesson: lessonParams } = req.query
 
-    const { lesson } = req.body
+    let { classTheme, classBlock, classNumber, gang } = req.body
+
+    if (!day || !periodParams || !lessonParams) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam dados para localizar a aula e editá-la.'
+        }
+      })
+    }
+
+    const token = req.headers.authorization.slice(7)
+    const tokenDecoded = jwt.decode(token)
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
     const findTeacher = await models.teachers.findOne({ where: { id: id } })
 
+    day = day[0].toUpperCase() + day.substring(1);
+    periodParams = periodParams.toLowerCase()
+    gang = gang && gang.toUpperCase()
+    classBlock = classBlock && classBlock.toUpperCase()
+
     if (findTeacher) {
-      if (findTeacher.lessons.filter(({horary, day}) => horary === horaryParams && day === dayParams).length !== 0) {
-        const lessonsUpdated = findTeacher.lessons.map(({ classTheme, classroom, horary, day }) => {
-          return horary === horaryParams && day === dayParams ? {
-            classTheme: (lesson.classTheme) && (classTheme !== lesson.classTheme) ? lesson.classTheme : classTheme,
-            classroom: (lesson.classroom) && (classroom !== lesson.classroom) ? lesson.classroom : classroom,
-            horary: (lesson.horary) && (horary !== lesson.horary) ? lesson.horary : horary,
-            day: (lesson.day) && (day !== lesson.day) ? lesson.day : day,
-            gang: (lesson.gang) && (gang !== lesson.gang) ? lesson.gang : gang,
-          } : {
-            classTheme, 
-            classroom, 
-            horary, 
-            day,
-            gang
+      if (!['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].includes(day)) {
+        return res.status(400).send({
+          error: {
+            message: 'O dia informado não é válido para localizar a aula',
           }
         })
+      }
+
+      if (classBlock && !classNumber || classNumber && !classBlock) {
+        return res.status(400).send({
+          error: {
+            message: 'Não é possível atualizar a classe onde será a aula com apenas um parâmetro informado',
+          }
+        })
+      }
+
+      const lessonExists = findTeacher.lessons[day].filter((item) => item.period === periodParams && item.lesson === lessonParams)
+
+      if (lessonExists.length !== 0) {
+        const classExists = classBlock && classNumber ? await models.class_.findOne({
+          where: {
+            idInstitution: findUser.idInstitution,
+            period: periodParams,
+            block: classBlock,
+            classNumber: classNumber
+          }
+        }) : await models.class_.findOne({
+          where: {
+            idInstitution: findUser.idInstitution,
+            period: periodParams,
+            block: lessonExists[0].classBlock,
+            classNumber: lessonExists[0].classNumber
+          }
+        })
+
+        if (!classExists) {
+          return res.status(400).send({
+            error: {
+              message: 'A classe informada não existe',
+            }
+          })
+        }
+
+        const classThemes = classExists.classTheme.map(({ name }) => { return convertToSlug(name) })
+
+        if (!classThemes.includes(convertToSlug(classTheme))) {
+          return res.status(400).send({
+            error: {
+              message: 'A matéria informada não está prevista no curso atribuído a classe informada',
+            }
+          })
+        }
+
+        let lessonsUpdated = findTeacher.lessons
+
+        const lessonInDayUpdated = findTeacher.lessons[day].map(({ lesson, period, classTheme: oldClassTheme, classBlock: oldClassBlock, classNumber: oldClassNumber, gang: oldGang }) => {
+          return period === periodParams && lesson === lessonParams ? {
+            classTheme: (classTheme) && (classTheme !== oldClassTheme) ? classTheme : oldClassTheme,
+            gang: (gang) && (gang !== oldGang) ? gang : oldGang,
+            lesson,
+            period,
+            classBlock: (classBlock) && (classBlock !== oldClassBlock) ? classBlock : oldClassBlock,
+            classNumber: (classNumber) && (classNumber !== oldClassNumber) ? classNumber : oldClassNumber,
+          } : {
+            classTheme: oldClassTheme,
+            gang: oldGang,
+            lesson,
+            period,
+            classBlock: oldClassBlock,
+            classNumber: oldClassNumber,
+          }
+        })
+
+        lessonsUpdated[day] = lessonInDayUpdated
 
         await models.teachers.update({
           lessons: lessonsUpdated,
         }, { where: { id: id } })
 
-        res.status(200).send(await  models.teachers.findOne({ where: { id: id } }))
+        return res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Não existe uma aula com esse professor com as credenciais informadas',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhum professor foi encontrado. Não foi possível concluir a atualização',
         }
@@ -272,42 +418,46 @@ exports.deleteLessons = async (req, res) => {
     logger.info(`TeachersController/deleteLessons - delete a lesson from an existing teacher`)
 
     const id = req.params.id
-    const {horaryParams, dayParams} = req.params
+    let { day, period: periodParams, lesson: lessonParams } = req.query
+
+    day = day[0].toUpperCase() + day.substring(1);
+    periodParams = periodParams.toLowerCase()
 
     const findTeacher = await models.teachers.findOne({ where: { id: id } })
 
     if (findTeacher) {
-      let lessonExists = {
-        value: false,
-        horary: null,
-        day: null
+      if (!['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].includes(day)) {
+        return res.status(400).send({
+          error: {
+            message: 'O dia informado não é válido para localizar a aula',
+          }
+        })
       }
 
-      if (findTeacher.lessons.filter(({horary, day}) => horary === horaryParams && day === dayParams).length !== 0) {
-        lessonExists = {
-          value: true,
-          horary: horaryParams,
-          day: dayParams
-        }
-      }
+      if (findTeacher.lessons[day].filter((item) => item.period === periodParams && item.lesson === lessonParams).length !== 0) {
+        let lessonsUpdated = findTeacher.lessons
 
-      if (lessonExists.value) {
-        const lessonsUpdated = findTeacher.lessons.filter(({horary, day}) => horary !== horaryParams && day !== dayParams)
+        const lessonInDayUpdated = findTeacher.lessons[day].filter((item) =>
+          (item.period === periodParams && item.lesson !== lessonParams) ||
+          (item.period !== periodParams && item.lesson !== lessonParams)
+        )
+
+        lessonsUpdated[day] = lessonInDayUpdated
 
         await models.teachers.update({
           lessons: lessonsUpdated,
         }, { where: { id: id } })
 
-        res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
+        return res.status(200).send(await models.teachers.findOne({ where: { id: id } }))
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Aula não encontrada ou já deletada',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhum professor foi encontrado. Não foi possível concluir a remoção',
         }

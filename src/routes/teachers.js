@@ -10,7 +10,7 @@ router.put('/:id', login, TeachersController.update)
 
 //update lessons column
 router.post('/addLessons/:id', login, TeachersController.addLessons)
-router.put('/updateLessons/:id/:horaryParams/:dayParams', login, TeachersController.updateLessons)
-router.delete('/deleteLessons/:id/:horaryParams/:dayParams', login, TeachersController.deleteLessons)
+router.put('/updateLessons/:id', login, TeachersController.updateLessons)
+router.delete('/deleteLessons/:id', login, TeachersController.deleteLessons)
 
 module.exports = router
