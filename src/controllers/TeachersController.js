@@ -104,6 +104,8 @@ exports.store = async (req, res) => {
       "Saturday": [],
     }
 
+    //{ "Monday": [], "Tuesday": [], "Wednesday": [], "Thursday": [], "Friday": [], "Saturday": []}
+
     const newTeacher = await models.teachers.create({
       idUser: idUser,
       speciality: speciality,
@@ -241,8 +243,8 @@ exports.addLessons = async (req, res) => {
 
         if (findTeacher.lessons[lessons.day].length > 1) {
           findTeacher.lessons[lessons.day].sort((a, b) => {
-            let x = convertToSlug(a.lesson).toLowerCase()
-            let y = convertToSlug(b.lesson).toLowerCase()
+            let x = a.lesson
+            let y = b.lesson
 
             return x === y ? 0 : x > y ? 1 : -1
           })
@@ -324,7 +326,7 @@ exports.updateLessons = async (req, res) => {
         })
       }
 
-      const lessonExists = findTeacher.lessons[day].filter((item) => item.period === periodParams && item.lesson === lessonParams)
+      const lessonExists = findTeacher.lessons[day].filter((item) => item.period === periodParams && item.lesson === Number(lessonParams))
 
       if (lessonExists.length !== 0) {
         const classExists = classBlock && classNumber ? await models.class_.findOne({
@@ -364,7 +366,7 @@ exports.updateLessons = async (req, res) => {
         let lessonsUpdated = findTeacher.lessons
 
         const lessonInDayUpdated = findTeacher.lessons[day].map(({ lesson, period, classTheme: oldClassTheme, classBlock: oldClassBlock, classNumber: oldClassNumber, gang: oldGang }) => {
-          return period === periodParams && lesson === lessonParams ? {
+          return period === periodParams && lesson === Number(lessonParams) ? {
             classTheme: (classTheme) && (classTheme !== oldClassTheme) ? classTheme : oldClassTheme,
             gang: (gang) && (gang !== oldGang) ? gang : oldGang,
             lesson,
@@ -434,12 +436,12 @@ exports.deleteLessons = async (req, res) => {
         })
       }
 
-      if (findTeacher.lessons[day].filter((item) => item.period === periodParams && item.lesson === lessonParams).length !== 0) {
+      if (findTeacher.lessons[day].filter((item) => item.period === periodParams && item.lesson === Number(lessonParams)).length !== 0) {
         let lessonsUpdated = findTeacher.lessons
 
         const lessonInDayUpdated = findTeacher.lessons[day].filter((item) =>
-          (item.period === periodParams && item.lesson !== lessonParams) ||
-          (item.period !== periodParams && item.lesson !== lessonParams)
+          (item.period === periodParams && item.lesson !== Number(lessonParams)) ||
+          (item.period !== periodParams && item.lesson !== Number(lessonParams))
         )
 
         lessonsUpdated[day] = lessonInDayUpdated

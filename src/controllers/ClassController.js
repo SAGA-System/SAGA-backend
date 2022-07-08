@@ -3,6 +3,7 @@ const moment = require('moment')
 
 const logger = require('../resources/logger')
 const { convertToSlug } = require('../resources/normalizer')
+const api = require('../../config/api')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
@@ -108,21 +109,45 @@ exports.store = async (req, res) => {
 
       if (period.toLowerCase() === courseData[0].period.toLowerCase()) {
         let lessons = {
-          Monday: {},
-          Tuesday: {},
-          Wednesday: {},
-          Thursday: {},
-          Friday: {},
-          Saturday: {},
+          Monday: [],
+          Tuesday: [],
+          Wednesday: [],
+          Thursday: [],
+          Friday: [],
+          Saturday: [],
         }
 
         for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
-          lessons.Monday[i + 1] = ""
-          lessons.Tuesday[i + 1] = ""
-          lessons.Wednesday[i + 1] = ""
-          lessons.Thursday[i + 1] = ""
-          lessons.Friday[i + 1] = ""
-          lessons.Saturday[i + 1] = ""
+          lessons.Monday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Tuesday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Wednesday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Thursday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Friday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Saturday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
         }
 
         const newClass = await models.class_.create({
@@ -181,13 +206,22 @@ exports.update = async (req, res) => {
       classNumber
     } = req.body
 
-    const token = req.headers.authorization.slice(7)
-    const tokenDecoded = jwt.decode(token)
+    const token = req.headers.authorization
+    const tokenDecoded = jwt.decode(token.slice(7))
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
     const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
 
     const findClass = await models.class_.findOne({ where: { id: id } })
+    const findAllTeachers = await models.teachers.findAll({
+      include: {
+        model: models.users,
+        as: 'idUser_user',
+        where: {
+          idInstitution: findUser.idInstitution
+        }
+      }
+    })
 
     if (findClass) {
       const courseData = course ?
@@ -207,21 +241,117 @@ exports.update = async (req, res) => {
         convertToSlug(findClass.period) === convertToSlug(courseData[0].period)
       ) {
         let lessons = {
-          Monday: {},
-          Tuesday: {},
-          Wednesday: {},
-          Thursday: {},
-          Friday: {},
-          Saturday: {},
+          Monday: [],
+          Tuesday: [],
+          Wednesday: [],
+          Thursday: [],
+          Friday: [],
+          Saturday: [],
         }
 
         for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
-          lessons.Monday[i + 1] = ""
-          lessons.Tuesday[i + 1] = ""
-          lessons.Wednesday[i + 1] = ""
-          lessons.Thursday[i + 1] = ""
-          lessons.Friday[i + 1] = ""
-          lessons.Saturday[i + 1] = ""
+          lessons.Monday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Tuesday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Wednesday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Thursday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Friday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+          lessons.Saturday[i] = {
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }
+        }
+
+        let teacherForDeleteLessons = []
+
+        for (teacher of findClass.teachers) {
+          if (!teacherForDeleteLessons.some(({ id }) => teacher.id === id)) {
+            teacherForDeleteLessons.push({ id: teacher.id })
+          }
+        }
+
+        let lessonsForDelete = []
+
+        if (teacherForDeleteLessons.length !== 0) {
+          for (let teacher of teacherForDeleteLessons) {
+            for (let day of Object.keys(findClass.lessons)) {
+              for (item of findClass.lessons[day]) {
+                if (Array.isArray(item)) {
+                  for (let lessonData of item) {
+                    if (lessonData.teacher.id === teacher.id) {
+                      lessonsForDelete.push({
+                        day: day,
+                        period: findClass.period,
+                        lesson: lessonData.lesson,
+                        idTeacher: teacher.id
+                      })
+                    }
+                  }
+                } else {
+                  if (item.teacher.id === teacher.id) {
+                    lessonsForDelete.push({
+                      day: day,
+                      period: findClass.period,
+                      lesson: item.lesson,
+                      idTeacher: teacher.id
+                    })
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        let errors = []
+
+        for (let lesson of lessonsForDelete) {
+          await api.delete(`/teacher/deleteLessons/${lesson.idTeacher}?day=${lesson.day
+            }&period=${lesson.period
+            }&lesson=${lesson.lesson}`, { headers: { authorization: token } }
+          ).catch(err => {
+            logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+            errors.push(err?.response?.data?.error?.message || err.message)
+          });
+        }
+
+        if (errors.length > 0) {
+          for (let { id } of teacherForDeleteLessons) {
+            for (let teacher of findAllTeachers) {
+              if (id === teacher.id) {
+                await models.teachers.update({
+                  lessons: teacher.lessons
+                }, { where: { id: id } })
+              }
+            }
+          }
+
+          return res.status(500).send({
+            error: {
+              message: 'Ocorreu um erro interno do servidor',
+              errorsRequest: errors
+            }
+          })
         }
 
         await models.class_.update({
@@ -250,7 +380,6 @@ exports.update = async (req, res) => {
       })
     }
   } catch (err) {
-    console.log(err)
     logger.error(`Failed to update class by id - Error: ${err.message}`)
 
     return res.status(500).send({
@@ -541,7 +670,7 @@ exports.addTeachers = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    if (!teachers.id || !teachers.classTheme || !teachers.gang) {
+    if (!teachers.idUser || !teachers.id || !teachers.classTheme) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -568,12 +697,14 @@ exports.addTeachers = async (req, res) => {
             model: models.users,
             as: 'idUser_user',
             where: {
-              id: teachers.id
+              id: teachers.idUser
             }
+          }, where: {
+            id: teachers.id
           }
         })
 
-        if(!user) {
+        if (!user) {
           return res.status(400).send({
             error: {
               message: 'O professor informado não está cadastrado no sistema'
@@ -635,34 +766,204 @@ exports.updateTeacher = async (req, res) => {
 
     const dataForUpdate = req.body
 
+    const token = req.headers.authorization
+
+    const findTeacher = await models.teachers.findOne({ where: { idUser: idUser } })
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    if (findClass) {
-      let teacherExistsInClass = false
+    if (!dataForUpdate.oldClassTheme) {
+      return res.status(400).send({
+        error: {
+          message: 'informe os dados antigos para localização do professor na plataforma'
+        }
+      })
+    }
 
-      for (let i = 0; i < findClass.teachers.length; i++) {
-        if (findClass.teachers[i].id === Number(idUser)) {
-          teacherExistsInClass = true
+    if (!dataForUpdate.oldGang && dataForUpdate.gang) {
+      return res.status(400).send({
+        error: {
+          message: 'informe a turma antiga para poder atualizar a turma do professor na plataforma'
+        }
+      })
+    }
+
+    if (findClass) {
+      let teacherUpdatedData
+      if (dataForUpdate.classTheme) {
+        const ClassThemes = findClass.classTheme.map(({ name }) => { return convertToSlug(name) })
+
+        if (!ClassThemes.includes(convertToSlug(dataForUpdate.classTheme))) {
+          return res.status(400).send({
+            error: {
+              message: 'A matéria informada não está prevista nesse curso'
+            }
+          })
         }
       }
 
-      if (teacherExistsInClass) {
-        const teachersUpdated = findClass.teachers.map(({ id, classTheme, name, gang }) => {
-          return id === Number(idUser) ? {
+      if (findClass.teachers.filter((item) => item.idUser === Number(idUser) &&
+        (!dataForUpdate.oldClassTheme || item.classTheme === convertToSlug(dataForUpdate.oldClassTheme)) &&
+        (!dataForUpdate.oldGang || item.gang === dataForUpdate.oldGang.toUpperCase())).length === 0) {
+        return res.status(400).send({
+          error: {
+            message: 'Não existe nenhum professor com as credenciais informadas'
+          }
+        })
+      }
+
+      if (findClass.teachers.filter((item) => item.idUser === Number(idUser) &&
+        (!dataForUpdate.oldClassTheme || item.classTheme === convertToSlug(dataForUpdate.oldClassTheme)) &&
+        (!dataForUpdate.oldGang || item.gang === dataForUpdate.oldGang.toUpperCase())).length > 1) {
+        return res.status(400).send({
+          error: {
+            message: 'Especifique melhor o professor que deseja editar'
+          }
+        })
+      }
+
+      if (dataForUpdate.gang && dataForUpdate.classTheme &&
+        findClass.teachers.filter((item) => item.classTheme === dataForUpdate.classTheme && item.gang === dataForUpdate.gang).length !== 0
+      ) {
+        return res.status(400).send({
+          error: {
+            message: 'Já existe um professor definido para a matéria e turma informadas'
+          }
+        })
+      }
+
+      if (findClass.teachers.filter((item) => item.idUser === Number(idUser) &&
+        (!dataForUpdate.oldClassTheme || item.classTheme === convertToSlug(dataForUpdate.oldClassTheme)) &&
+        (!dataForUpdate.oldGang || item.gang === dataForUpdate.oldGang.toUpperCase()))[0].gang === '' && dataForUpdate.gang) {
+        return res.status(400).send({
+          error: {
+            message: 'Não é possível atribuir turma para um professor cuja matéria já não era dividida por turmas anteriormente'
+          }
+        })
+      }
+
+      if (findClass.teachers.filter((item) => item.idUser === Number(idUser)).length !== 0) {
+        const teachersUpdated = findClass.teachers.map(({ id, idUser: userID, classTheme, name, gang }) => {
+          if (userID === Number(idUser) && (
+            (!dataForUpdate.oldClassTheme || classTheme === convertToSlug(dataForUpdate.oldClassTheme)) &&
+            (!dataForUpdate.oldGang || gang === dataForUpdate.oldGang.toUpperCase()))
+          ) {
+            teacherUpdatedData = {
+              id,
+              idUser: userID,
+              name,
+              gang: (dataForUpdate.gang) && (gang !== dataForUpdate.gang) ? dataForUpdate.gang.toUpperCase() : gang.toUpperCase(),
+              classTheme: (dataForUpdate.classTheme) && (classTheme !== dataForUpdate.classTheme) ? dataForUpdate.classTheme : classTheme,
+            }
+          }
+
+          return userID === Number(idUser) && (
+            (!dataForUpdate.oldClassTheme || classTheme === convertToSlug(dataForUpdate.oldClassTheme)) &&
+            (!dataForUpdate.oldGang || gang === dataForUpdate.oldGang.toUpperCase())
+          ) ? {
             id,
+            idUser: userID,
             name,
             gang: (dataForUpdate.gang) && (gang !== dataForUpdate.gang) ? dataForUpdate.gang.toUpperCase() : gang.toUpperCase(),
             classTheme: (dataForUpdate.classTheme) && (classTheme !== dataForUpdate.classTheme) ? dataForUpdate.classTheme : classTheme,
           } : {
             id,
+            idUser: userID,
             name,
             gang,
             classTheme
           }
         })
 
+        let lessonsForUpdate = []
+        let classLessonsUpdated = findClass.lessons
+
+        for (let day of Object.keys(findClass.lessons)) {
+          classLessonsUpdated[day] = findClass.lessons[day].map(item => {
+            if (Array.isArray(item)) {
+              for (let { teacher, classTheme, gang } of item) {
+                if (teacher.idUser === Number(idUser) && (
+                  (convertToSlug(classTheme) === convertToSlug(dataForUpdate.oldClassTheme)) &&
+                  (!dataForUpdate.oldGang || gang.toUpperCase() === dataForUpdate.oldGang.toUpperCase()))
+                ) {
+                  lessonsForUpdate.push({
+                    day: day,
+                    period: findClass.period,
+                    lesson: item.filter(secondItem => secondItem.teacher.idUser === Number(idUser))[0].lesson
+                  })
+                }
+              }
+
+              return item.map(data => {
+                return data.teacher.idUser === Number(idUser) && (
+                  (convertToSlug(data.classTheme) === convertToSlug(dataForUpdate.oldClassTheme)) &&
+                  (!dataForUpdate.oldGang || data.gang.toUpperCase() === dataForUpdate.oldGang.toUpperCase())
+                ) ? {
+                  ...data,
+                  classTheme: teacherUpdatedData.classTheme,
+                  gang: teacherUpdatedData.gang,
+                  teacher: {
+                    ...data.teacher,
+                    name: teacherUpdatedData.name,
+                  }
+                } : data
+              })
+            } else {
+              if (item.teacher.idUser === Number(idUser) && (
+                (convertToSlug(item.classTheme) === convertToSlug(dataForUpdate.oldClassTheme))
+              )) {
+                lessonsForUpdate.push({
+                  day: day,
+                  period: findClass.period,
+                  lesson: item.lesson,
+                })
+              }
+
+              return item.teacher.idUser === Number(idUser) && (
+                (convertToSlug(item.classTheme) === convertToSlug(dataForUpdate.oldClassTheme))
+              ) ? {
+                ...item,
+                classTheme: teacherUpdatedData.classTheme,
+                gang: teacherUpdatedData.gang,
+                teacher: {
+                  ...item.teacher,
+                  name: teacherUpdatedData.name,
+                }
+              } : item
+            }
+          })
+        }
+
+        let errors = []
+
+        for (lesson of lessonsForUpdate) {
+          await api.put(`/teacher/updateLessons/${teacherUpdatedData.id}
+            ?day=${lesson.day
+            }&period=${lesson.period
+            }&lesson=${lesson.lesson}`, {
+            gang: teacherUpdatedData.gang,
+            classTheme: teacherUpdatedData.classTheme
+          }, { headers: { authorization: token } }).catch(err => {
+            logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+            errors.push(err?.response?.data?.error?.message || err.message)
+          });
+        }
+
+        if (errors.length > 0) {
+          await models.teachers.update({
+            lessons: findTeacher.lessons
+          }, { where: { idUser: idUser } })
+
+          return res.status(500).send({
+            error: {
+              message: 'Ocorreu um erro interno do servidor'
+            }
+          })
+        }
+
         await models.class_.update({
           teachers: teachersUpdated,
+          lessons: classLessonsUpdated
         }, { where: { id: idClass } })
 
         return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
@@ -682,7 +983,7 @@ exports.updateTeacher = async (req, res) => {
     }
 
   } catch (err) {
-    logger.error(`Failed to update student in class - Error: ${err.message}`)
+    logger.error(`Failed to update teacher in class - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
@@ -699,22 +1000,78 @@ exports.deleteTeacher = async (req, res) => {
     const idClass = req.params.idClass
     const idUser = req.params.idUser
 
+    const token = req.headers.authorization
+
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
+    const findTeacher = await models.teachers.findOne({ where: { idUser: idUser } })
+
     if (findClass) {
-      let teacherExistsInClass = false
+      const teacherForDelete = findClass.teachers.filter((item) => item.idUser === Number(idUser))
 
-      for (let teacher of findClass.teachers) {
-        if (teacher.id === Number(idUser)) {
-          teacherExistsInClass = true
+      let lessonsForDelete = []
+
+      let lessonsUpdated = findClass.lessons
+
+      if (teacherForDelete.length !== 0) {
+        for (let day of Object.keys(findClass.lessons)) {
+          lessonsUpdated[day] = findClass.lessons[day].map(item => {
+            if (Array.isArray(item)) {
+              lessonsForDelete.push({
+                day: day,
+                period: findClass.period,
+                lesson: item.filter(secondItem => secondItem.teacher.idUser === Number(idUser))[0].lesson
+              })
+
+              return item.filter(secondItem => secondItem.teacher.idUser !== Number(idUser))
+            } else {
+              if (item.teacher.idUser === Number(idUser)) {
+                lessonsForDelete.push({
+                  day: day,
+                  period: findClass.period,
+                  lesson: item.lesson
+                })
+              }
+
+              return item.teacher.idUser === Number(idUser) ? {
+                lesson: item.lesson,
+                teacher: {},
+                classTheme: ''
+              } : item
+            }
+          })
         }
-      }
 
-      if (teacherExistsInClass) {
-        const updatedTeachers = findClass.teachers.filter(({ id }) => id !== Number(idUser))
+        let errors = []
+
+        for (lesson of lessonsForDelete) {
+          await api.delete(`/teacher/deleteLessons/${teacherForDelete[0].id}
+            ?day=${lesson.day
+            }&period=${lesson.period
+            }&lesson=${lesson.lesson}`, { headers: { authorization: token } }).catch(err => {
+              logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+              errors.push(err?.response?.data?.error?.message || err.message)
+            });
+        }
+
+        if (errors.length > 0) {
+          await models.teachers.update({
+            lessons: findTeacher.lessons
+          }, { where: { idUser: idUser } })
+
+          return res.status(500).send({
+            error: {
+              message: 'Ocorreu um erro interno do servidor'
+            }
+          })
+        }
+
+        const updatedTeachers = findClass.teachers.filter((item) => item.idUser !== Number(idUser))
 
         await models.class_.update({
           teachers: updatedTeachers,
+          lessons: lessonsUpdated
         }, { where: { id: idClass } })
 
         return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
@@ -749,24 +1106,27 @@ exports.updateLessons = async (req, res) => {
 
     const idClass = req.params.idClass
 
-    const {
-      Monday,
-      Tuesday,
-      Wednesday,
-      Thursday,
-      Friday,
-      Saturday
-    } = req.body
+    const { lessons } = req.body
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    const token = req.headers.authorization.slice(7)
-    const tokenDecoded = jwt.decode(token)
+    const token = req.headers.authorization
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
     const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
 
-    if (!Monday || !Tuesday || !Wednesday || !Thursday || !Friday || !Saturday) {
+    const findAllTeachers = await models.teachers.findAll({
+      include: {
+        model: models.users,
+        as: 'idUser_user',
+        where: {
+          idInstitution: findUser.idInstitution
+        }
+      }
+    })
+
+    if (!lessons.Monday || !lessons.Tuesday || !lessons.Wednesday || !lessons.Thursday || !lessons.Friday || !lessons.Saturday) {
       return res.status(400).send({
         error: {
           message: 'Faltam dias para definir as aulas. Verifique as informações enviadas e tente novamente'
@@ -785,19 +1145,10 @@ exports.updateLessons = async (req, res) => {
         })
       }
 
-      const totalLessons = [
-        Object.values(Monday),
-        Object.values(Tuesday),
-        Object.values(Wednesday),
-        Object.values(Thursday),
-        Object.values(Friday),
-        Object.values(Saturday)
-      ]
-
       const ClassThemes = findClass.classTheme.map(({ name }) => { return convertToSlug(name) })
 
-      if (totalLessons.map(item => {
-        return item.length === courseData[0].lessonsPerDay
+      if (Object.keys(lessons).map(item => {
+        return lessons[item].length === courseData[0].lessonsPerDay
       }).includes(false)) {
         return res.status(400).send({
           error: {
@@ -806,9 +1157,34 @@ exports.updateLessons = async (req, res) => {
         })
       }
 
-      if (totalLessons.map(item => {
-        return item.map(itemMap => {
-          return itemMap && (ClassThemes.includes(convertToSlug(itemMap)))
+      if (Object.keys(lessons).map(item => {
+        return lessons[item].map(item => {
+          if (Array.isArray(item)) {
+            if (!item[0].gang.toUpperCase() || !item[1].gang.toUpperCase()) return false
+            if (item[0].gang.toUpperCase() === item[1].gang.toUpperCase()) return false
+
+            return item.map(({ gang }) => {
+              return gang ? true : false
+            }).includes(true)
+          }
+        }).includes(false)
+      }).includes(true)) {
+        return res.status(400).send({
+          error: {
+            message: 'As aulas informadas que são para turmas diferentes não possuem as turmas definidas'
+          }
+        })
+      }
+
+      if (Object.keys(lessons).map(item => {
+        return lessons[item].map(item => {
+          if (!Array.isArray(item)) {
+            return item.classTheme ? ClassThemes.includes(convertToSlug(item.classTheme)) : ''
+          } else {
+            return item.map(({ classTheme }) => {
+              return classTheme ? ClassThemes.includes(convertToSlug(classTheme)) : ''
+            }).includes(false) ? false : true
+          }
         }).includes(false)
       }).includes(true)) {
         return res.status(400).send({
@@ -818,15 +1194,274 @@ exports.updateLessons = async (req, res) => {
         })
       }
 
-      await models.class_.update({
-        lessons: {
-          Monday,
-          Tuesday,
-          Wednesday,
-          Thursday,
-          Friday,
-          Saturday
+      for (let day of Object.keys(lessons)) {
+        lessons[day] = lessons[day].map((item) => {
+          if (!item.gang && !Array.isArray(item)) {
+            return {
+              ...item,
+              gang: ''
+            }
+          } else {
+            return item
+          }
+        })
+      }
+
+      let errors = []
+
+      for (let day of Object.keys(lessons)) {
+        lessons[day] = lessons[day].map((item, i) => {
+          if (!Array.isArray(item)) {
+            if (!item.classTheme) return {
+              lesson: i + 1,
+              teacher: {},
+              classTheme: ''
+            };
+
+            const teacherData = findClass.teachers.filter(({ classTheme, gang }) =>
+              (convertToSlug(item.classTheme) === convertToSlug(classTheme) && item.gang === gang)
+            )[0]
+
+            if (!teacherData) {
+              errors.push(`Não foi encontrado um professor para a matéria ${item.classTheme
+                }${item.gang ? `, para a turma ${item.gang}` : ', sem turma definida'}`)
+              return
+            }
+
+            return {
+              ...item,
+              teacher: {
+                name: teacherData.name,
+                id: teacherData.id,
+                idUser: teacherData.idUser,
+              }
+            }
+          } else {
+            return item.map(secondItem => {
+              const teacherData = findClass.teachers.filter(({ classTheme, gang }) =>
+                (convertToSlug(secondItem.classTheme) === convertToSlug(classTheme) && secondItem.gang.toUpperCase() === gang.toUpperCase())
+              )[0]
+
+              if (!teacherData) {
+                errors.push(`Não foi encontrado um professor para a matéria ${secondItem.classTheme
+                  }${secondItem.gang ? `, para a turma ${secondItem.gang}` : ', sem turma definida'}`)
+                return
+              }
+
+              return {
+                ...secondItem,
+                gang: secondItem.gang.toUpperCase(),
+                teacher: {
+                  name: teacherData.name,
+                  id: teacherData.id,
+                  idUser: teacherData.idUser,
+                }
+              }
+            })
+          }
+        })
+      }
+
+      if (errors.length > 0) {
+        return res.status(400).send({
+          error: {
+            message: 'Alguns professores não foram encontrados para as aulas informadas dentro da classe. ' +
+              'Verifique se existem professores cadastrados na classe para as matérias necessárias e tente novamente',
+            errorsRequest: errors
+          }
+        })
+      }
+
+      // organize lessons in order
+      for (let day of Object.keys(lessons)) {
+        lessons[day] = lessons[day].sort((a, b) => {
+          let x = Array.isArray(a) ? a[0].lesson : a.lesson
+          let y = Array.isArray(b) ? b[0].lesson : b.lesson
+
+          return x === y ? 0 : x > y ? 1 : -1
+        })
+      }
+
+      const allTeachersClassroom = findAllTeachers.filter(({ id }) => findClass.teachers.some(elem => elem.id === id))
+
+      let errorsUpdateTeacher = []
+
+      async function addLessonsInTeacher({ day, i, index = '' }) {
+        await api.post(`/teacher/addLessons/${index.toString() ?
+          lessons[day][i][index].teacher.id :
+          lessons[day][i].teacher.id}`, {
+          lessons: {
+            classTheme: index.toString() ? lessons[day][i][index].classTheme : lessons[day][i].classTheme,
+            day: day,
+            gang: index.toString() ? lessons[day][i][index].gang : lessons[day][i].gang,
+            lesson: index.toString() ? lessons[day][i][index].lesson : lessons[day][i].lesson,
+            period: findClass.period,
+            classBlock: findClass.block,
+            classNumber: findClass.classNumber,
+          }
+        }, { headers: { authorization: token } }).catch(err => {
+          logger.error(`Failed to add lesson in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+          errorsUpdateTeacher.push(err?.response?.data?.error?.message || err.message)
+        });
+      }
+
+      async function deleteLessonsInTeacher({ day, i, index = '' }) {
+        await api.delete(`/teacher/deleteLessons/${index.toString() ?
+          findClass.lessons[day][i][index].teacher.id :
+          findClass.lessons[day][i].teacher.id
+          }?day=${day
+          }&period=${findClass.period
+          }&lesson=${index.toString() ?
+            findClass.lessons[day][i][index].lesson :
+            findClass.lessons[day][i].lesson}`, { headers: { authorization: token } }
+        ).catch(err => {
+          logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+          errorsUpdateTeacher.push(err?.response?.data?.error?.message || err.message)
+        });
+      }
+
+      // logic for update teachers table, lessons column
+      for (let day of Object.keys(lessons)) {
+        for (let i = 0; i < findClass.lessons[day].length; i++) {
+          //checks if this class existed previously, if not, it just continues with the registration
+          if (!Array.isArray(findClass.lessons[day][i]) && JSON.stringify(findClass.lessons[day][i]) === JSON.stringify({
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }) && JSON.stringify(lessons[day][i]) !== JSON.stringify({
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          })) {
+            //checks if current classes are divided into gangs at that day and time
+            if (Array.isArray(lessons[day][i])) {
+              for (let index = 0; index < lessons[day][i].length; index++) {
+                const teacherLessonData = allTeachersClassroom.filter(item => item.id === lessons[day][i][index].teacher.id)[0]
+                if (teacherLessonData.lessons[day][i]) {
+                  errorsUpdateTeacher.push(`O professor ${teacherLessonData.idUser_user.name} já possui uma aula na ${day === 'Monday' ? 'Segunda-feira' :
+                    day === 'Tuesday' ? 'Terça-feira' :
+                      day === 'Wednesday' ? 'Quarta-feira' :
+                        day === 'Thursday' ? 'Quinta-feira' :
+                          day === 'Friday' ? 'Sexta-feira' :
+                            day === 'Saturday' ? 'Sábado' : ''
+                    }, na aula ${i + 1}`)
+                } else {
+                  await addLessonsInTeacher({ day, i, index })
+                }
+              }
+            } else {
+              const teacherLessonData = allTeachersClassroom.filter(item => item.id === lessons[day][i].teacher.id)[0]
+              if (teacherLessonData.lessons[day][i]) {
+                errorsUpdateTeacher.push(`O professor ${teacherLessonData.idUser_user.name} já possui uma aula na ${day === 'Monday' ? 'Segunda-feira' :
+                  day === 'Tuesday' ? 'Terça-feira' :
+                    day === 'Wednesday' ? 'Quarta-feira' :
+                      day === 'Thursday' ? 'Quinta-feira' :
+                        day === 'Friday' ? 'Sexta-feira' :
+                          day === 'Saturday' ? 'Sábado' : ''
+                  }, na aula ${i + 1}`)
+              } else {
+                await addLessonsInTeacher({ day, i })
+              }
+            }
+          } else if (Array.isArray(findClass.lessons[day][i]) && Array.isArray(lessons[day][i]) &&
+            lessons[day][i].length !== findClass.lessons[day][i].length
+          ) {
+            //delete current lessons in teachers
+            for (let index = 0; index < findClass.lessons[day][i].length; index++) {
+              await deleteLessonsInTeacher({ day, i, index })
+            }
+            //add new lessons in teachers
+            for (let index = 0; index < lessons[day][i].length; index++) {
+              await addLessonsInTeacher({ day, i, index })
+            }
+            //logic to check if a class existed before that is currently removed
+          } else if (JSON.stringify(findClass.lessons[day][i]) !== JSON.stringify({
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          }) && JSON.stringify(lessons[day][i]) === JSON.stringify({
+            lesson: i + 1,
+            teacher: {},
+            classTheme: ''
+          })) {
+
+            //checks if old classes are divided into gangs on that day and time
+            if (Array.isArray(findClass.lessons[day][i])) {
+              for (let index = 0; index < findClass.lessons[day][i].length; index++) {
+                await deleteLessonsInTeacher({ day, i, index })
+              }
+            } else {
+              await deleteLessonsInTeacher({ day, i })
+            }
+
+            //if old lesson is Array and new lesson isn't array
+          } else if (Array.isArray(findClass.lessons[day][i]) && !Array.isArray(lessons[day][i])) {
+            for (let index = 0; index < findClass.lessons[day][i].length; index++) {
+              await deleteLessonsInTeacher({ day, i, index })
+            }
+            await addLessonsInTeacher({ day, i })
+
+            //if old lesson is't Array and new lesson is array
+          } else if (!Array.isArray(findClass.lessons[day][i]) && Array.isArray(lessons[day][i])) {
+            await deleteLessonsInTeacher({ day, i })
+            for (let index = 0; index < lessons[day][i].length; index++) {
+              await addLessonsInTeacher({ day, i, index })
+            }
+
+            //logic to check if there is any class on the current day that is different from what it was
+          } else if (Array.isArray(findClass.lessons[day][i]) ?
+            findClass.lessons[day][i].map((item, index) => {
+              return item.teacher.id === lessons[day][i][index].teacher.id &&
+                convertToSlug(item.classTheme) === convertToSlug(lessons[day][i][index].classTheme) ? true : false
+            }).includes(false)
+            : findClass.lessons[day][i].teacher.id !== lessons[day][i].teacher.id ||
+              convertToSlug(findClass.lessons[day][i].classTheme) !== convertToSlug(lessons[day][i].classTheme) ? true : false
+          ) {
+
+            //checks if old classes are divided into gangs on that day and time
+            if (Array.isArray(findClass.lessons[day][i])) {
+              for (let index = 0; index < findClass.lessons[day][i].length; index++) {
+                await deleteLessonsInTeacher({ day, i, index })
+              }
+            } else {
+              await deleteLessonsInTeacher({ day, i })
+            }
+
+            //checks if current classes are divided into gangs at that day and time
+            if (Array.isArray(lessons[day][i])) {
+              for (let index = 0; index < lessons[day][i].length; index++) {
+                await addLessonsInTeacher({ day, i, index })
+              }
+            } else {
+              await addLessonsInTeacher({ day, i })
+            }
+          }
         }
+      }
+
+      if (errorsUpdateTeacher.length > 0) {
+        for (let teacher of allTeachersClassroom) {
+          await models.teachers.update({
+            lessons: teacher.lessons
+          }, { where: { id: teacher.id } })
+        }
+
+        await models.institution.update({
+          courses: findInstitution.courses
+        }, { where: { id: idClass } })
+
+        return res.status(500).send({
+          error: {
+            message: 'Ocorreu um erro interno do servidor',
+            errorsRequest: errorsUpdateTeacher
+          }
+        })
+      }
+
+      await models.class_.update({
+        lessons
       }, { where: { id: idClass } })
 
       return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
