@@ -7,48 +7,56 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    idStudentClasses: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    },
     idTeacher: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false,
+      references: {
+        model: 'teachers',
+        key: 'id'
+      }
     },
     grade1Bim: {
       type: DataTypes.STRING(10),
-      allowNull: true
-    },
-    evaluations1Bim: {
-      type: DataTypes.JSON,
       allowNull: true
     },
     grade2Bim: {
       type: DataTypes.STRING(10),
       allowNull: true
     },
-    evaluations2Bim: {
-      type: DataTypes.JSON,
-      allowNull: true
-    },
     grade3Bim: {
       type: DataTypes.STRING(10),
-      allowNull: true
-    },
-    evaluations3Bim: {
-      type: DataTypes.JSON,
       allowNull: true
     },
     grade4Bim: {
       type: DataTypes.STRING(10),
       allowNull: true
     },
-    evaluations4Bim: {
+    gradeFinal: {
+      type: DataTypes.STRING(10),
+      allowNull: true
+    },
+    idStudentClasses: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'studentclasses',
+        key: 'id'
+      }
+    },
+    evaluations1Bim: {
       type: DataTypes.JSON,
       allowNull: true
     },
-    gradeFinal: {
-      type: DataTypes.STRING(10),
+    evaluations2Bim: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    evaluations3Bim: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    evaluations4Bim: {
+      type: DataTypes.JSON,
       allowNull: true
     },
     totalClasses: {

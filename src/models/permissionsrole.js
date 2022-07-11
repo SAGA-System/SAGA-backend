@@ -1,55 +1,31 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('schoolcalls', {
+  return sequelize.define('permissionsrole', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    idUser: {
+    idPermission: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'permissions',
         key: 'id'
       }
     },
-    idClass: {
+    idRole: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'class',
+        model: 'roles',
         key: 'id'
       }
-    },
-    classTheme: {
-      type: DataTypes.STRING(255),
-      allowNull: false
-    },
-    date: {
-      type: DataTypes.DATE,
-      allowNull: false
-    },
-    description: {
-      type: DataTypes.STRING(255),
-      allowNull: false
-    },
-    absents: {
-      type: DataTypes.JSON,
-      allowNull: false
-    },
-    gang: {
-      type: DataTypes.STRING(255),
-      allowNull: false
-    },
-    bimester: {
-      type: DataTypes.INTEGER,
-      allowNull: false
     }
   }, {
     sequelize,
-    tableName: 'schoolcalls',
+    tableName: 'permissionsrole',
     timestamps: true,
     indexes: [
       {
@@ -61,17 +37,17 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "idUser",
+        name: "idPermission",
         using: "BTREE",
         fields: [
-          { name: "idUser" },
+          { name: "idPermission" },
         ]
       },
       {
-        name: "idClass",
+        name: "idRole",
         using: "BTREE",
         fields: [
-          { name: "idClass" },
+          { name: "idRole" },
         ]
       },
     ]

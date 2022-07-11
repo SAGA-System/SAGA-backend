@@ -30,14 +30,6 @@ module.exports = function(sequelize, DataTypes) {
     }, 
     rg: {      
       type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    allPermissions: {
-      type: DataTypes.JSON,
-      allowNull: false
-    },
-    flowType: {
-      type: DataTypes.INTEGER,
       allowNull: false
     },
     email: {
@@ -72,6 +64,14 @@ module.exports = function(sequelize, DataTypes) {
     resetPassword: {
       type: DataTypes.JSON,
       allowNull: true
+    },
+    idRole: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'roles',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -99,6 +99,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "idInstitution" },
+        ]
+      },
+      {
+        name: "users_ibfk_2",
+        using: "BTREE",
+        fields: [
+          { name: "idRole" },
         ]
       },
     ]
