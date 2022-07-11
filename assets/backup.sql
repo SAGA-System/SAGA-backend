@@ -30,10 +30,6 @@ CREATE TABLE `bulletin` (
   `grade3Bim` varchar(10) DEFAULT NULL,
   `grade4Bim` varchar(10) DEFAULT NULL,
   `gradeFinal` varchar(10) DEFAULT NULL,
-  `totalClasses` int DEFAULT NULL,
-  `classesGiven` int DEFAULT NULL,
-  `absence` int DEFAULT NULL,
-  `frequency` decimal(10,0) DEFAULT NULL,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL,
   `idStudentClasses` int NOT NULL,
@@ -41,6 +37,10 @@ CREATE TABLE `bulletin` (
   `evaluations2Bim` json DEFAULT NULL,
   `evaluations3Bim` json DEFAULT NULL,
   `evaluations4Bim` json DEFAULT NULL,
+  `totalClasses` int DEFAULT NULL,
+  `classesGiven` int DEFAULT NULL,
+  `absence` int DEFAULT NULL,
+  `frequency` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `bulletin_ibfk_1` (`idStudentClasses`) USING BTREE,
   KEY `Bulletin_ibfk_2` (`idTeacher`) USING BTREE,
@@ -221,6 +221,63 @@ INSERT INTO `permissions` VALUES (1,'ADD_USERS','Adicionar novos usuários no si
 UNLOCK TABLES;
 
 --
+-- Table structure for table `permissionsrole`
+--
+
+DROP TABLE IF EXISTS `permissionsrole`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `permissionsrole` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `idPermission` int NOT NULL,
+  `idRole` int NOT NULL,
+  `createdAt` datetime DEFAULT NULL,
+  `updatedAt` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idPermission` (`idPermission`),
+  KEY `idRole` (`idRole`),
+  CONSTRAINT `permissionsrole_ibfk_1` FOREIGN KEY (`idPermission`) REFERENCES `permissions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `permissionsrole_ibfk_2` FOREIGN KEY (`idRole`) REFERENCES `roles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `permissionsrole`
+--
+
+LOCK TABLES `permissionsrole` WRITE;
+/*!40000 ALTER TABLE `permissionsrole` DISABLE KEYS */;
+/*!40000 ALTER TABLE `permissionsrole` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `slug` varchar(255) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `createdAt` datetime DEFAULT NULL,
+  `updatedAt` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `roles`
+--
+
+LOCK TABLES `roles` WRITE;
+/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
+/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `schoolcalls`
 --
 
@@ -377,36 +434,6 @@ INSERT INTO `teachers` VALUES (3,50,'banco de dados','{\"Friday\": [], \"Monday\
 UNLOCK TABLES;
 
 --
--- Table structure for table `userpermissions`
---
-
-DROP TABLE IF EXISTS `userpermissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `userpermissions` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `idUser` int NOT NULL,
-  `idPermissions` int NOT NULL,
-  `createdAt` datetime NOT NULL,
-  `updatedAt` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `userPermissions_fk0` (`idUser`) USING BTREE,
-  KEY `userPermissions_fk1` (`idPermissions`) USING BTREE,
-  CONSTRAINT `userpermissions_ibfk_1` FOREIGN KEY (`idUser`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `userpermissions_ibfk_2` FOREIGN KEY (`idPermissions`) REFERENCES `permissions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `userpermissions`
---
-
-LOCK TABLES `userpermissions` WRITE;
-/*!40000 ALTER TABLE `userpermissions` DISABLE KEYS */;
-/*!40000 ALTER TABLE `userpermissions` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `users`
 --
 
@@ -420,8 +447,6 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `cpf` varchar(255) NOT NULL,
   `rg` varchar(255) NOT NULL,
-  `allPermissions` json NOT NULL,
-  `flowType` int NOT NULL,
   `email` varchar(255) NOT NULL,
   `phone` varchar(255) NOT NULL,
   `street` varchar(255) NOT NULL,
@@ -432,10 +457,13 @@ CREATE TABLE `users` (
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL,
   `resetPassword` json DEFAULT NULL,
+  `idRole` int NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   KEY `Users_fk0` (`idInstitution`) USING BTREE,
-  CONSTRAINT `users_ibfk_1` FOREIGN KEY (`idInstitution`) REFERENCES `institution` (`id`) ON UPDATE CASCADE
+  KEY `users_ibfk_2` (`idRole`),
+  CONSTRAINT `users_ibfk_1` FOREIGN KEY (`idInstitution`) REFERENCES `institution` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `users_ibfk_2` FOREIGN KEY (`idRole`) REFERENCES `roles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -445,7 +473,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (13,24,'Carlos Eduardo','$2b$10$A2HTibSsejJWi8IP7nv7Mu2F9Crx2uN6m6o6OObpqYp9CE1/JNsse','14274060063','600523123','[1]',4,'carloseduardozzz@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 01:59:34','2022-05-08 01:59:34',NULL),(14,24,'Carlos Eduardo','$2b$10$amkO663AUj6wE8H8zx1T.OeaPS8EdP3V3GSjjnvZpzYfjkXg30E4C','03578846040','600523123','[1]',4,'carloseduardozzzasda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 02:16:25','2022-05-08 02:16:25',NULL),(40,24,'Carlos Eduardo t','$2b$10$E40AD2ERNZHMAqY0hD6nCOpyfrDz0fK/s2IDFPS3OUlp0MQknZV0G','31544698008','600523123','[1]',1,'cadadrlosgfgfdfda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:19:39','2022-05-08 20:19:39',NULL),(42,24,'Carlos Eduardo t','$2b$10$C6W0x5PB1NPFrTpB.8.w4.6.igOb4bpaZdrzFlZShI1yek7ag8Vbm','85548968076','600523123','[1]',1,'cadadrlosgfgfdafda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:22:30','2022-05-08 20:22:30',NULL),(43,24,'Carlos Eduardo t','$2b$10$W8dr6hG0B6jvYeqjXdMTMObar1beuibvVm/O8ShDXXx7l3Dap0NNK','37237291009','600523123','[1]',1,'cadadrlosgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:25:52','2022-05-08 20:25:52',NULL),(44,24,'Carlos Eduardo t','$2b$10$vMBgmQWbgArpX7u/Qk7vRu0u06heRMjR9MnbJz2lfg4s.e3o7nHeG','57257559082','600523123','[1]',1,'cadadrlasdosgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:27:14','2022-05-08 20:27:14',NULL),(45,24,'Carlos Eduardo t','$2b$10$tiwgkSNJLdNrW630jYX9Ve5zjYvII.Ea2Kmay5ynd.GvlOGpphNiW','16561882016','600523123','[1]',1,'cadadsdadrlasdosgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:27:42','2022-05-08 20:27:42',NULL),(46,24,'Carlos Eduardo t','$2b$10$J3PPwfIqZN1yu61e.JdZMuF0idkTcIjRGT2YVZasWnGlhGeG1smqK','45936739090','600523123','[1]',1,'cadadsdadrlasdofsafassgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:28:23','2022-05-08 20:28:23',NULL),(50,24,'professor pedro sgorlon','$2b$10$RXDQkOhDPCaDLYdIsqzCu.FZ.dy0zHh.VRZU2y7brdkmeoFgGuIzu','59822500076','856989859','[1]',4,'penavin309@dufeed.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-15 14:34:08','2022-05-15 14:56:03',NULL),(51,24,'João Pedro Costa','$2b$10$rfxYmMH4eR5VLOptlaT8L.8tC765vikF1kfi6RCj0FodDeeR9.5Wq','93496185082','856989859','[1]',6,'wawapa3877@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-15 20:31:48','2022-06-22 13:49:03','{\"token\": \"01478c0f22ddc512552b78c5e1776b96638a705d\", \"expiresIn\": \"2022-06-22T11:48:22.380Z\"}'),(56,24,'victor','$2b$10$gsSFiyUDQ5oEqqqFN7D9N.VUj7ZtHwOoprHsDSrn77Dfqz0xW.XIW','93025203072','856989859','[1]',6,'wawapa387gg7@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-21 15:38:53','2022-05-21 15:38:53',NULL),(59,24,'prof victor','$2b$10$Fa/xSwP0hzVwMdawQP2JR.UvIHwj09AjmfQEDtpNYHVTFCnDH1wWS','23934789064','856989859','[1]',4,'wawapa387ggasd7@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-21 18:54:40','2022-05-21 18:54:40',NULL),(67,24,'Allan Goto','$2b$10$rGGuldUJQpcb9nBMSltqxOCUS/9Vv0qUngYKaXsWYWITkSw066Z6y','16727400024','856989859','[1]',6,'waw387ggaassd7@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-06-22 13:51:34','2022-06-22 13:51:57',NULL);
+INSERT INTO `users` VALUES (13,24,'Carlos Eduardo','$2b$10$A2HTibSsejJWi8IP7nv7Mu2F9Crx2uN6m6o6OObpqYp9CE1/JNsse','14274060063','600523123','carloseduardozzz@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 01:59:34','2022-05-08 01:59:34',NULL,0),(14,24,'Carlos Eduardo','$2b$10$amkO663AUj6wE8H8zx1T.OeaPS8EdP3V3GSjjnvZpzYfjkXg30E4C','03578846040','600523123','carloseduardozzzasda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 02:16:25','2022-05-08 02:16:25',NULL,0),(40,24,'Carlos Eduardo t','$2b$10$E40AD2ERNZHMAqY0hD6nCOpyfrDz0fK/s2IDFPS3OUlp0MQknZV0G','31544698008','600523123','cadadrlosgfgfdfda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:19:39','2022-05-08 20:19:39',NULL,0),(42,24,'Carlos Eduardo t','$2b$10$C6W0x5PB1NPFrTpB.8.w4.6.igOb4bpaZdrzFlZShI1yek7ag8Vbm','85548968076','600523123','cadadrlosgfgfdafda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:22:30','2022-05-08 20:22:30',NULL,0),(43,24,'Carlos Eduardo t','$2b$10$W8dr6hG0B6jvYeqjXdMTMObar1beuibvVm/O8ShDXXx7l3Dap0NNK','37237291009','600523123','cadadrlosgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:25:52','2022-05-08 20:25:52',NULL,0),(44,24,'Carlos Eduardo t','$2b$10$vMBgmQWbgArpX7u/Qk7vRu0u06heRMjR9MnbJz2lfg4s.e3o7nHeG','57257559082','600523123','cadadrlasdosgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:27:14','2022-05-08 20:27:14',NULL,0),(45,24,'Carlos Eduardo t','$2b$10$tiwgkSNJLdNrW630jYX9Ve5zjYvII.Ea2Kmay5ynd.GvlOGpphNiW','16561882016','600523123','cadadsdadrlasdosgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:27:42','2022-05-08 20:27:42',NULL,0),(46,24,'Carlos Eduardo t','$2b$10$J3PPwfIqZN1yu61e.JdZMuF0idkTcIjRGT2YVZasWnGlhGeG1smqK','45936739090','600523123','cadadsdadrlasdofsafassgfgfdafasdda@email.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-08 20:28:23','2022-05-08 20:28:23',NULL,0),(50,24,'professor pedro sgorlon','$2b$10$RXDQkOhDPCaDLYdIsqzCu.FZ.dy0zHh.VRZU2y7brdkmeoFgGuIzu','59822500076','856989859','penavin309@dufeed.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-15 14:34:08','2022-05-15 14:56:03',NULL,0),(51,24,'João Pedro Costa','$2b$10$rfxYmMH4eR5VLOptlaT8L.8tC765vikF1kfi6RCj0FodDeeR9.5Wq','93496185082','856989859','wawapa3877@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-15 20:31:48','2022-06-22 13:49:03','{\"token\": \"01478c0f22ddc512552b78c5e1776b96638a705d\", \"expiresIn\": \"2022-06-22T11:48:22.380Z\"}',0),(56,24,'victor','$2b$10$gsSFiyUDQ5oEqqqFN7D9N.VUj7ZtHwOoprHsDSrn77Dfqz0xW.XIW','93025203072','856989859','wawapa387gg7@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-21 15:38:53','2022-05-21 15:38:53',NULL,0),(59,24,'prof victor','$2b$10$Fa/xSwP0hzVwMdawQP2JR.UvIHwj09AjmfQEDtpNYHVTFCnDH1wWS','23934789064','856989859','wawapa387ggasd7@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-05-21 18:54:40','2022-05-21 18:54:40',NULL,0),(67,24,'Allan Goto','$2b$10$rGGuldUJQpcb9nBMSltqxOCUS/9Vv0qUngYKaXsWYWITkSw066Z6y','16727400024','856989859','waw387ggaassd7@roxoas.com','18999999999','Rua a',11,'Centro',NULL,'Adamantina','2022-06-22 13:51:34','2022-06-22 13:51:57',NULL,0);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -458,4 +486,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-07-08 13:53:27
+-- Dump completed on 2022-07-11 12:35:51
