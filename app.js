@@ -8,6 +8,7 @@ const classRoutes = require('./src/routes/class')
 const teachersRoutes = require('./src/routes/teachers')
 const studentRoutes = require('./src/routes/students')
 const permissionRoutes = require('./src/routes/permission')
+const rolesRoutes = require('./src/routes/roles')
 const evaluationRoutes = require('./src/routes/evaluation')
 
 app.use(express.urlencoded({ extended: false }))
@@ -19,6 +20,7 @@ app.use('/class', classRoutes)
 app.use('/teacher', teachersRoutes)
 app.use('/student', studentRoutes)
 app.use('/permission', permissionRoutes)
+app.use('/roles', rolesRoutes)
 app.use('/evaluation', evaluationRoutes)
 
 app.use((req, res, next) => {
