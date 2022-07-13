@@ -415,18 +415,20 @@ exports.destroy = async (req, res) => {
 
     const findUser = await models.users.findOne({ where: { id: id } })
 
-    if (findUser && ([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
-      const roleId = findUser.roleId
-      const Classes = await models.class_.findAll()
-
-      const ids = Classes.filter(({ teachers, students }) => roleId === 6 ? students.length > 0 && students.map(item => {
-        return item.id === Number(id)
-      }).some(elem => elem === true) : teachers.length > 0 && teachers.map(item => {
-        return item.id === Number(id)
-      }).some(elem => elem === true))
-
-      for (let i = 0; i < ids.length; i++) {
-        await api.delete(`/class/delete${roleId === 6 ? 'Student' : 'Teacher'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
+    if (findUser) {
+      if(([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
+        const roleId = findUser.roleId
+        const Classes = await models.class_.findAll()
+  
+        const ids = Classes.filter(({ teachers, students }) => roleId === 6 ? students.length > 0 && students.map(item => {
+          return item.id === Number(id)
+        }).some(elem => elem === true) : teachers.length > 0 && teachers.map(item => {
+          return item.id === Number(id)
+        }).some(elem => elem === true))
+  
+        for (let i = 0; i < ids.length; i++) {
+          await api.delete(`/class/delete${roleId === 6 ? 'Student' : 'Teacher'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
+        }
       }
 
       await models.users.destroy({ where: { id: id } })
