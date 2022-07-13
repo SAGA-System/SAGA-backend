@@ -540,22 +540,16 @@ exports.updateStudent = async (req, res) => {
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
-      let studentExistsInClass = false
-
-      for (let i = 0; i < findClass.students.length; i++) {
-        if (findClass.students[i].id === Number(idUser)) {
-          studentExistsInClass = true
-        }
-      }
-
-      if (studentExistsInClass) {
-        const studentsUpdated = findClass.students.map(({ id, ra, name }) => {
-          return id === Number(idUser) ? {
-            id,
+      if (findClass.students.filter(({idUser: userID}) => userID === Number(idUser)).length !== 0) {
+        const studentsUpdated = findClass.students.map(({ idUser: userID, ra, name, gang }) => {
+          return userID === Number(idUser) ? {
+            idUser: Number(userID),
+            gang,
             ra: (dataForUpdate.ra) && (ra !== dataForUpdate.ra) ? dataForUpdate.ra : ra,
             name: (dataForUpdate.name) && (name !== dataForUpdate.name) ? dataForUpdate.name : name
           } : {
-            id,
+            idUser: Number(userID),
+            gang,
             ra,
             name
           }

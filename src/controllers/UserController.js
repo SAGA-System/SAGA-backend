@@ -14,9 +14,15 @@ const models = initModels(db)
 
 exports.index = async (req, res) => {
   try {
-    logger.info(`UserController/index - list all institutions`)
+    logger.info(`UserController/index - list all users in institution`)
 
-    const users = await models.users.findAll()
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+
+    const users = await models.users.findAll({
+      where: { idInstitution: findUser.idInstitution }
+    })
 
     if (users.length === 0) {
       return res.status(404).send({
@@ -31,7 +37,6 @@ exports.index = async (req, res) => {
     }
 
     return res.status(200).send(users)
-
   } catch (err) {
     logger.error(`Failed to list users - Error: ${err.message}`)
 
@@ -49,7 +54,13 @@ exports.show = async (req, res) => {
 
     const id = req.params.id
 
-    const user = await models.users.findOne({ where: { id: id } })
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
+
+    const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
+
+    let user = await models.users.findOne({
+      where: { id: id, idInstitution: findUser.idInstitution }
+    })
 
     if (!user) {
       return res.status(404).send({
@@ -59,7 +70,26 @@ exports.show = async (req, res) => {
       })
     }
 
-    delete user.dataValues.password
+    let roles = await models.roles.findOne({ where: { id: user.idRole } })
+    const permissions = await models.permissions.findAll({
+      include: {
+        model: models.permissionsrole,
+        as: 'permissionsroles',
+        where: {
+          idRole: user.idRole
+        }
+      }
+    })
+
+    roles = {
+      ...roles["dataValues"], permissions: permissions.map(item => {
+        delete item.dataValues.permissionsroles
+        return item.dataValues
+      })
+    }
+    user = { ...user["dataValues"], roles: roles }
+
+    delete user.password
 
     return res.status(200).send(user)
   } catch (err) {
@@ -83,8 +113,7 @@ exports.store = async (req, res) => {
       password,
       cpf,
       rg,
-      allPermissions,
-      flowType,
+      idRole,
       email,
       phone,
       street,
@@ -101,50 +130,25 @@ exports.store = async (req, res) => {
       situation,
     } = req.body
 
-    // criação do usuário - flowType
-    // 1 - admin
-    // 2 - diretor
-    // 3 - coordenação
-    // 4 - professor
-    // 5 - pais
-    // 6 - aluno
+    // criação do usuário - roles
+    // admin
+    // principal
+    // coordinator
+    // teacher
+    // parent
+    // student
 
-    /*
-    ADD_USERS
-    EDIT_USERS
-    EDIT_YOUR_USER
-    INACTIVATE_USERS
-    DELETE_USERS
-    LIST_USERS
-    LIST_STUDENTS
-    LIST_TEACHERS
-    EDIT_USER_PERMISSIONS
-    CHANGE_CLASS_STUDENT
-    ADD_PERMISSIONS
-    CREATE_INSTITUTIONS
-    EDIT_INSTITUTIONS
-    EDIT_YOUR_INSTITUTION
-    INACTIVATE_INSTITUTIONS
-    DELETE_INSTITUTION
-    ADD_CLASSES
-    EDIT_CLASSES
-    DELETE_CLASSES
-    */
-
-    const roles = [{
-      admin: [],
-      principal: [],
-      generalCoordinator: [],
-      pedagogicalCoordinator: [],
-      courseCoordinator: [],
-      teacher: [],
-      parents: ['LIST_TEACHERS'],
-      student: ['LIST_TEACHERS']
-    }]
-
-    if (!idInstitution || !name || !password || !cpf || !rg || !allPermissions ||
-      !flowType || !email || !phone || !street || !number || !district || !city ||
-      flowType === 4 && (!speciality) || flowType === 6 && (!idClass || !ra || !schoolYear || !situation)) {
+    if (!idInstitution || !name || !password || !cpf || !rg || !idRole || !email ||
+      !phone || !street || !number || !district || !city
+    ) {
+      return res.status(400).send({
+        error: {
+          message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    } else if (idRole && ([2, 3, 4].includes(idRole) && !speciality ||
+      idRole === 6 && (!idClass || !ra || !schoolYear || !situation))
+    ) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -166,6 +170,14 @@ exports.store = async (req, res) => {
     const findForCPF = await models.users.findAll({ where: { cpf: cpf } })
     const findForEmail = await models.users.findAll({ where: { email: email } })
 
+    if (idRole === 6 && !(await models.class_.findOne({ where: { id: idClass } }))) {
+      return res.status(400).send({
+        error: {
+          message: 'A classe informada não existe'
+        }
+      })
+    }
+
     if (findForCPF.length === 0 && findForEmail.length === 0) {
       if (dataValidator.validateCPF(cpf)) {
         bcrypt.hash(password, 10, async (errBcrypt, hash) => {
@@ -183,8 +195,7 @@ exports.store = async (req, res) => {
             password: hash,
             cpf: cpf,
             rg: rg,
-            allPermissions: allPermissions,
-            flowType: flowType,
+            idRole: idRole,
             email: email,
             phone: phone,
             street: street,
@@ -197,12 +208,12 @@ exports.store = async (req, res) => {
           delete user.dataValues.password;
 
           try {
-            if (flowType === 4) {
+            if ([2, 3, 4].includes(idRole)) {
               await api.post('/teacher', {
                 idUser: user.id,
                 speciality: speciality,
               }, { headers: { authorization: token } });
-            } else if (flowType === 6) {
+            } else if (idRole === 6) {
               await api.post('/student', {
                 idUser: user.id,
                 idClass: idClass,
@@ -216,6 +227,7 @@ exports.store = async (req, res) => {
             }
           } catch (err) {
             await models.users.destroy({ where: { id: user.id } })
+
             logger.error(`Failed to create user - Error: ${err?.response?.data?.error?.message || err.message}`)
 
             return res.status(500).send({
@@ -263,11 +275,11 @@ exports.update = async (req, res) => {
     const token = req.headers.authorization
     const id = req.params.id
 
-    const {
+    let {
       name,
       cpf,
       rg,
-      flowType,
+      idRole,
       phone,
       street,
       number,
@@ -278,12 +290,42 @@ exports.update = async (req, res) => {
 
     const findUser = await models.users.findOne({ where: { id: id } })
 
+    //normalize data
+    rg = rg ? normalizer.removeMask(rg) : findUser.rg
+    cpf = cpf ? normalizer.removeMask(cpf) : findUser.cpf
+    phone = phone ? normalizer.removeMask(phone) : findUser.phone
+
+    if (idRole && !(await models.roles.findOne({ where: { id: idRole } }))) {
+      return res.status(404).send({
+        error: {
+          message: 'O perfil informado não é válido'
+        }
+      })
+    }
+
+    if (idRole) {
+      if (findUser.idRole === 6 && idRole !== 6) {
+        return res.status(404).send({
+          error: {
+            message: 'Não é possível alterar o perfil de um usuário aluno'
+          }
+        })
+      }
+      if ([2, 3, 4].includes(findUser.idRole) && ![2, 3, 4].includes(idRole)) {
+        return res.status(404).send({
+          error: {
+            message: 'Não é possível alterar o perfil de um usuário professor/coordenador/diretor para outro que não esses'
+          }
+        })
+      }
+    }
+
     if (findUser) {
       await models.users.update({
         name: name,
         cpf: cpf,
         rg: rg,
-        flowType: flowType,
+        idRole: idRole,
         phone: phone,
         street: street,
         number: number,
@@ -295,45 +337,49 @@ exports.update = async (req, res) => {
       const updatedUser = await models.users.findOne({ where: { id: id } })
 
       if (name !== findUser.dataValues.name) {
-        if (updatedUser.dataValues.flowType === 4) {
+        if ([2, 3, 4].includes(updatedUser.dataValues.idRole)) {
           const Classes = await models.class_.findAll({ where: { idInstitution: updatedUser.idInstitution } })
 
           const ids = Classes.filter((item) => item.dataValues.teachers.length > 0 && item.dataValues.teachers.map(item => {
-            return item.id === Number(id)
+            return item.idUser === Number(id)
           }).some(elem => elem === true))
 
-          for (let i = 0; i < ids.length; i++) {
-            await api.put(`/class/updateTeacher/${ids[i].id}/${id}`, {
-              name: name
-            }, { headers: { authorization: token } }).catch(err => {
-              logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
+          try {
+            for (let i = 0; i < ids.length; i++) {
+              await api.put(`/class/updateTeacher/${ids[i].id}/${id}`, {
+                name: name
+              }, { headers: { authorization: token } })
+            }
+          } catch (err) {
+            logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
 
-              return res.status(500).send({
-                error: {
-                  message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
-                }
-              })
-            });
+            return res.status(500).send({
+              error: {
+                message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
+              }
+            })
           }
-        } else if (updatedUser.dataValues.flowType === 6) {
+        } else if (updatedUser.dataValues.idRole === 6) {
           const Classes = await models.class_.findAll({ where: { idInstitution: updatedUser.idInstitution } })
 
           const ids = Classes.filter((item) => item.dataValues.students.length > 0 && item.dataValues.students.map(item => {
-            return item.id === Number(id)
+            return item.idUser === Number(id)
           }).some(elem => elem === true))
 
-          for (let i = 0; i < ids.length; i++) {
-            await api.put(`/class/updateStudent/${ids[i].id}/${id}`, {
-              name: name,
-            }, { headers: { authorization: token } }).catch(err => {
-              logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
+          try {
+            for (let i = 0; i < ids.length; i++) {
+              await api.put(`/class/updateStudent/${ids[i].id}/${id}`, {
+                name: name,
+              }, { headers: { authorization: token } })
+            }
+          } catch (err) {
+            logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
 
-              return res.status(500).send({
-                error: {
-                  message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
-                }
-              })
-            });
+            return res.status(500).send({
+              error: {
+                message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
+              }
+            })
           }
         }
       }
@@ -369,18 +415,18 @@ exports.destroy = async (req, res) => {
 
     const findUser = await models.users.findOne({ where: { id: id } })
 
-    if (findUser && (findUser.flowType === 4 || findUser.flowType === 6)) {
-      const flowType = findUser.flowType
+    if (findUser && ([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
+      const roleId = findUser.roleId
       const Classes = await models.class_.findAll()
 
-      const ids = Classes.filter(({ teachers, students }) => flowType === 4 ? teachers.length > 0 && teachers.map(item => {
+      const ids = Classes.filter(({ teachers, students }) => roleId === 6 ? students.length > 0 && students.map(item => {
         return item.id === Number(id)
-      }).some(elem => elem === true) : students.length > 0 && students.map(item => {
+      }).some(elem => elem === true) : teachers.length > 0 && teachers.map(item => {
         return item.id === Number(id)
       }).some(elem => elem === true))
 
       for (let i = 0; i < ids.length; i++) {
-        await api.delete(`/class/delete${flowType === 4 ? 'Teacher' : 'Student'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
+        await api.delete(`/class/delete${roleId === 6 ? 'Student' : 'Teacher'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
       }
 
       await models.users.destroy({ where: { id: id } })
