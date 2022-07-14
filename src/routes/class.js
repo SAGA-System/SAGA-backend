@@ -25,5 +25,6 @@ router.post('/updateLessons/:idClass', login, ClassController.updateLessons)
 router.put('/updateFrequency/:idClass', login, ClassController.updateFrequency)
 
 router.put('/defineGangs/:idClass/', login, ClassController.defineGangs)
+router.post('/generateBulletins/:idClass', login, ClassController.generateBulletins)
 
 module.exports = router

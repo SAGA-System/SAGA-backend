@@ -43,22 +43,6 @@ module.exports = function(sequelize, DataTypes) {
         key: 'id'
       }
     },
-    evaluations1Bim: {
-      type: DataTypes.JSON,
-      allowNull: true
-    },
-    evaluations2Bim: {
-      type: DataTypes.JSON,
-      allowNull: true
-    },
-    evaluations3Bim: {
-      type: DataTypes.JSON,
-      allowNull: true
-    },
-    evaluations4Bim: {
-      type: DataTypes.JSON,
-      allowNull: true
-    },
     totalClasses: {
       type: DataTypes.INTEGER,
       allowNull: true
@@ -74,6 +58,18 @@ module.exports = function(sequelize, DataTypes) {
     frequency: {
       type: DataTypes.DECIMAL(10,0),
       allowNull: true
+    },
+    idInstitution: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'institution',
+        key: 'id'
+      }
+    },
+    classTheme: {
+      type: DataTypes.STRING(255),
+      allowNull: false
     }
   }, {
     sequelize,
@@ -100,6 +96,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "idTeacher" },
+        ]
+      },
+      {
+        name: "bulletin_ibfk_3",
+        using: "BTREE",
+        fields: [
+          { name: "idInstitution" },
         ]
       },
     ]

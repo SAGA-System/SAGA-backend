@@ -34,6 +34,8 @@ function initModels(sequelize) {
   class_.hasMany(schoolcalls, { as: "schoolcalls", foreignKey: "idClass"});
   studentclasses.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
   class_.hasMany(studentclasses, { as: "studentclasses", foreignKey: "idClass"});
+  bulletin.belongsTo(institution, { as: "idInstitution_institution", foreignKey: "idInstitution"});
+  institution.hasMany(bulletin, { as: "bulletins", foreignKey: "idInstitution"});
   class_.belongsTo(institution, { as: "idInstitution_institution", foreignKey: "idInstitution"});
   institution.hasMany(class_, { as: "classes", foreignKey: "idInstitution"});
   users.belongsTo(institution, { as: "idInstitution_institution", foreignKey: "idInstitution"});

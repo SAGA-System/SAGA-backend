@@ -30,6 +30,10 @@ module.exports = function(sequelize, DataTypes) {
     grades: {
       type: DataTypes.JSON,
       allowNull: false
+    },
+    bimester: {
+      type: DataTypes.INTEGER,
+      allowNull: false
     }
   }, {
     sequelize,

@@ -540,7 +540,7 @@ exports.updateStudent = async (req, res) => {
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
     if (findClass) {
-      if (findClass.students.filter(({idUser: userID}) => userID === Number(idUser)).length !== 0) {
+      if (findClass.students.filter(({ idUser: userID }) => userID === Number(idUser)).length !== 0) {
         const studentsUpdated = findClass.students.map(({ idUser: userID, ra, name, gang }) => {
           return userID === Number(idUser) ? {
             idUser: Number(userID),
@@ -1695,6 +1695,145 @@ exports.updateFrequency = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update frequency - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.generateBulletins = async (req, res) => {
+  try {
+    logger.info(`ClassController/generateBulletins - bulletin generation`)
+
+    const idClass = req.params.idClass
+
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
+
+    if (!findClass) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhuma classe foi encontrada. Não foi possível gerar os boletins',
+        }
+      })
+    }
+
+    if (findClass.students.length === 0) {
+      return res.status(404).send({
+        error: {
+          message: 'Não existe nenhum aluno na classe. Não foi possível gerar os boletins',
+        }
+      })
+    }
+
+    let classThemeTeachers = []
+
+    for (let { name } of findClass.classTheme) {
+      const teacherExists = findClass.teachers.filter(({ classTheme }) => convertToSlug(name) === convertToSlug(classTheme))
+      if (teacherExists.length !== 0) {
+        if (teacherExists.length > 1) {
+          for (let teacher of teacherExists) {
+            classThemeTeachers.push({
+              classTheme: name,
+              teacherId: teacher.id,
+              gang: teacher.gang
+            })
+          }
+        } else {
+          classThemeTeachers.push({
+            classTheme: name,
+            teacherId: teacherExists[0].id,
+            gang: ''
+          })
+        }
+      }
+    }
+
+    let classThemeTeachersNoGang = []
+    let errors = []
+
+    for (let teacher of classThemeTeachers) {
+      if (!classThemeTeachersNoGang.some(({classTheme}) => convertToSlug(classTheme) === convertToSlug(teacher.classTheme))) {
+        if (!teacher.gang) {
+          classThemeTeachersNoGang.push(teacher)
+        } else if (classThemeTeachers.filter(({ classTheme }) => classTheme === teacher.classTheme).length !== 2) {
+          errors.push('Matéria dividida em turmas mas faltando professores para uma das turmas ou ambas')
+        } else {
+          classThemeTeachersNoGang.push(teacher)
+        }
+      }
+    }
+
+    if (errors.length !== 0 || (findClass.classTheme.length !== classThemeTeachersNoGang.length)) {
+      return res.status(400).send({
+        error: {
+          message: 'Não é possível gerar o boletim de uma matéria que não possui um professor atribuído a ela',
+        }
+      })
+    }
+
+    const studentClasses = await models.studentclasses.findAll({ where: { idClass: idClass } })
+
+    for (let student of studentClasses) {
+      const bulletin = await models.bulletin.findAll({ where: { idStudentClasses: student.id } })
+      if (bulletin.length !== 0) {
+        return res.status(400).send({
+          error: {
+            message: 'O boletim já foi gerado nessa sala',
+          }
+        })
+      }
+    }
+
+    for (let student of studentClasses) {
+      for (let classTheme of classThemeTeachers) {
+        const totalClasses = student.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        )[0].totalClasses || 0
+
+        const classesGiven = student.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        )[0].classesGiven || 0
+
+        const absence = student.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        )[0].absence || 0
+
+        const frequency = student.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        )[0].frequency || 0
+
+        if (!classTheme.gang) {
+          await models.bulletin.create({
+            idInstitution: findClass.idInstitution,
+            idTeacher: classTheme.teacherId,
+            idStudentClasses: student.id,
+            classTheme: classTheme.classTheme,
+            totalClasses,
+            classesGiven,
+            absence,
+            frequency,
+          })
+        } else if (student.gang.toUpperCase() === classTheme.gang.toUpperCase()) {
+          await models.bulletin.create({
+            idInstitution: findClass.idInstitution,
+            idTeacher: classTheme.teacherId,
+            idStudentClasses: student.id,
+            classTheme: classTheme.classTheme,
+            totalClasses,
+            classesGiven,
+            absence,
+            frequency,
+          })
+        }
+      }
+    }
+
+    return res.status(201).send({ message: "Boletim gerado com sucesso!" })
+  } catch (err) {
+    logger.error(`Failed to generate bulletins - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
