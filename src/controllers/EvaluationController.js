@@ -94,10 +94,11 @@ exports.store = async (req, res) => {
       idSchoolCall,
       description,
       method,
-      instruments
+      instruments,
+      bimester
     } = req.body
 
-    if (!idSchoolCall || !description || !method || !instruments) {
+    if (!idSchoolCall || !description || !method || !instruments || !bimester) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -135,7 +136,8 @@ exports.store = async (req, res) => {
         description: findSchoolCall.description !== description ? description : findSchoolCall.description,
         method: method,
         instruments: instruments,
-        grades: evaluatedStudents
+        grades: evaluatedStudents,
+        bimester: bimester
       })
 
       res.status(201).send({
@@ -167,7 +169,7 @@ exports.update = async (req, res) => {
 
     const id = req.params.id
 
-    const { description, method, instruments } = req.body
+    const { description, method, instruments, bimester } = req.body
 
     const findEvaluation = await models.evaluations.findAll({ where: { id: id } })
 
@@ -175,7 +177,8 @@ exports.update = async (req, res) => {
       await models.evaluations.update({
         description: description,
         method: method,
-        instruments: instruments
+        instruments: instruments,
+        bimester: bimester,
       }, { where: { id: id } })
 
       res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
@@ -239,6 +242,15 @@ exports.assignGrades = async (req, res) => {
 
     if (findEvaluation) {
       const verifyGrades = grades.filter(item => !item.idUser || !item.name)
+
+      for(let i = 0; i < grades.length; i++) {
+        grades[i] = {
+          idUser: grades[i].idUser,
+          name: grades[i].name,
+          grade: grades[i].grade.toUpperCase()
+        }
+      }
+
       if ((grades.length === findEvaluation.grades.length) && (verifyGrades.length === 0)) {
         await models.evaluations.update({
           grades: grades,

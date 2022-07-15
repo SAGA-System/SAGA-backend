@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 
 const logger = require('../resources/logger')
+const { convertToSlug } = require('../resources/normalizer')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
@@ -43,14 +44,19 @@ exports.show = async (req, res) => {
 
     const idStudent = req.params.idStudent
 
-    let bulletin = await models.bulletin.findOne({
+    let bulletin = await models.bulletin.findAll({
       include: {
-        model: models.schoolcalls,
-        as: 'idSchoolCall_schoolcall'
-      }, where: { idStudent: idStudent }
+        model: models.studentclasses,
+        as: "idStudentClasses_studentclass",
+        where: { idStudent: idStudent }
+      }
     })
 
-    if (!bulletin) {
+    for (let b of bulletin) {
+      delete b.dataValues.idStudentClasses_studentclass
+    }
+
+    if (bulletin.length === 0) {
       return res.status(404).send({
         error: {
           message: 'Nenhum boletim foi encontrado. Verifique as informações e tente novamente'
@@ -72,16 +78,15 @@ exports.show = async (req, res) => {
 
 exports.store = async (req, res) => {
   try {
-    logger.info(`bulletinController/store - create evaluation`)
+    logger.info(`bulletinController/store - create bulletin`)
 
     let {
-      idSchoolCall,
-      description,
-      method,
-      instruments
+      idClass,
+      idStudent,
+      classTheme
     } = req.body
 
-    if (!idSchoolCall || !description || !method || !instruments) {
+    if (!idClass || !idStudent || !classTheme) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -89,51 +94,129 @@ exports.store = async (req, res) => {
       })
     }
 
-    const findSchoolCall = await models.schoolcalls.findOne({ where: { id: idSchoolCall } })
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
+    const findStudent = await models.students.findOne({ where: { id: idStudent } })
 
-    const students = await models.studentclasses.findAll({
-      include: {
-        model: models.students,
-        as: 'idStudent_student',
-        include: {
-          model: models.users,
-          as: 'idUser_user'
-        }
-      },
-      where: { idClass: findSchoolCall.idClass }
-    })
-
-    const evaluatedStudents = students.map(({ idStudent_student }) => {
-      return {
-        idUser: idStudent_student.idUser,
-        name: idStudent_student.idUser_user.name,
-        grade: ''
-      }
-    })
-
-    const evaluationExists = await models.evaluations.findAll({ where: { idSchoolCall: idSchoolCall, method: method, instruments: instruments } })
-
-    if (evaluationExists.length === 0) {
-      const newEvaluation = await models.evaluations.create({
-        idSchoolCall: idSchoolCall,
-        description: findSchoolCall.description !== description ? description : findSchoolCall.description,
-        method: method,
-        instruments: instruments,
-        grades: evaluatedStudents
-      })
-
-      res.status(201).send({
-        message: 'Avaliação criada com sucesso',
-        newEvaluation
-      })
-    } else {
-      return res.status(409).send({
+    if (!findClass) {
+      return res.status(404).send({
         error: {
-          message: 'Já existe uma avaliação na plataforma com as credenciais informadas'
+          message: 'A classe informada não existe'
         }
       })
     }
 
+    if (!findStudent) {
+      return res.status(404).send({
+        error: {
+          message: 'O estudante informado não existe'
+        }
+      })
+    }
+
+    const findStudentClasses = await models.studentclasses.findOne({ where: { idStudent: idStudent, idClass: idClass } })
+
+    if (!findStudentClasses) {
+      return res.status(404).send({
+        error: {
+          message: 'O estudante informado não está atribuído a classe informada'
+        }
+      })
+    }
+
+    let classThemeTeachers = []
+
+    for (let { name } of findClass.classTheme) {
+      const teacherExists = findClass.teachers.filter(({ classTheme }) => convertToSlug(name) === convertToSlug(classTheme))
+      if (teacherExists.length !== 0) {
+        if (teacherExists.length > 1) {
+          for (let teacher of teacherExists) {
+            classThemeTeachers.push({
+              classTheme: name,
+              teacherId: teacher.id,
+              gang: teacher.gang
+            })
+          }
+        } else {
+          classThemeTeachers.push({
+            classTheme: name,
+            teacherId: teacherExists[0].id,
+            gang: ''
+          })
+        }
+      }
+    }
+
+    let classThemeTeachersNoGang = []
+    let errors = []
+
+    for (let teacher of classThemeTeachers) {
+      if (!classThemeTeachersNoGang.some(({ classTheme }) => convertToSlug(classTheme) === convertToSlug(teacher.classTheme))) {
+        if (!teacher.gang) {
+          classThemeTeachersNoGang.push(teacher)
+        } else if (classThemeTeachers.filter(({ classTheme }) => classTheme === teacher.classTheme).length !== 2) {
+          errors.push('Matéria dividida em turmas mas faltando professores para uma das turmas ou ambas')
+        } else {
+          classThemeTeachersNoGang.push(teacher)
+        }
+      }
+    }
+
+    if (errors.length !== 0 || (findClass.classTheme.length !== classThemeTeachersNoGang.length)) {
+      return res.status(400).send({
+        error: {
+          message: 'Não é possível gerar o boletim de uma matéria que não possui um professor atribuído a ela',
+        }
+      })
+    }
+
+    if (await models.bulletin.findOne({ where: { idStudentClasses: findStudentClasses.id, classTheme: classTheme } })) {
+      return res.status(400).send({
+        error: {
+          message: 'Já existe um boletim com as informações fornecidas',
+        }
+      })
+    }
+
+    for (let { classTheme: lesson, teacherId, gang } of classThemeTeachers) {
+      if ((!gang && convertToSlug(lesson) === convertToSlug(classTheme)) ||
+        (
+          gang.toUpperCase() === findStudentClasses.gang.toUpperCase() &&
+          convertToSlug(lesson) === convertToSlug(classTheme)
+        )
+      ) {
+        const totalClasses = findStudentClasses.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme)
+        )[0].totalClasses || 0
+
+        const classesGiven = findStudentClasses.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme)
+        )[0].classesGiven || 0
+
+        const absence = findStudentClasses.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme)
+        )[0].absence || 0
+
+        const frequency = findStudentClasses.frequency.filter(({ name }) =>
+          convertToSlug(name) === convertToSlug(classTheme)
+        )[0].frequency || 0
+
+        const newBulletin = await models.bulletin.create({
+          idInstitution: findClass.idInstitution,
+          idTeacher: teacherId,
+          idStudentClasses: findStudentClasses.id,
+          classTheme: lesson,
+          totalClasses,
+          classesGiven,
+          absence,
+          frequency,
+        })
+
+        return res.status(201).send({
+          message: 'Avaliação criada com sucesso',
+          newBulletin
+        })
+      }
+    }
   } catch (err) {
     logger.error(`Failed to create evaluation - Error: ${err.message}`)
 
@@ -147,31 +230,75 @@ exports.store = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    logger.info(`bulletinController/update - update evaluation by id`)
+    logger.info(`bulletinController/update - update bulletin by id`)
 
     const id = req.params.id
 
-    const { description, method, instruments } = req.body
+    let { grade1Bim, grade2Bim, grade3Bim, grade4Bim, gradeFinal, classGiven, absence } = req.body
 
-    const findEvaluation = await models.evaluations.findAll({ where: { id: id } })
+    const findBulletin = await models.bulletin.findOne({ where: { id: id } })
 
-    if (findEvaluation.length !== 0) {
-      await models.evaluations.update({
-        description: description,
-        method: method,
-        instruments: instruments
-      }, { where: { id: id } })
+    grade1Bim = grade1Bim ? grade1Bim.toUpperCase() : findBulletin.grade1Bim
+    grade2Bim = grade2Bim ? grade2Bim.toUpperCase() : findBulletin.grade2Bim
+    grade3Bim = grade3Bim ? grade3Bim.toUpperCase() : findBulletin.grade3Bim
+    grade4Bim = grade4Bim ? grade4Bim.toUpperCase() : findBulletin.grade4Bim
+    gradeFinal = gradeFinal ? gradeFinal.toUpperCase() : findBulletin.gradeFinal
 
-      res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
-    } else {
-      res.status(404).send({
+    if (classGiven) {
+      if (classGiven > findBulletin.totalClasses) {
+        return res.status(400).send({
+          error: {
+            message: 'O número de aulas dadas não pode ser maior que o número de aulas totais',
+          }
+        })
+      }
+
+      if (!absence) {
+        if (classGiven < findBulletin.absence) {
+          return res.status(400).send({
+            error: {
+              message: 'O número de aulas dadas não pode ser menor que o número de faltas atual',
+            }
+          })
+        }
+      } else if (absence > classGiven) {
+        return res.status(400).send({
+          error: {
+            message: 'O número de faltas não pode ser maior que o número de aulas dadas',
+          }
+        })
+      }
+    } else if (absence) {
+      if (absence > findBulletin.classGiven) {
+       return res.status(400).send({
+          error: {
+            message: 'O número de faltas não pode ser maior que o número de aulas dadas atual',
+          }
+        })
+      }
+    }
+
+    if (!findBulletin) {
+      return res.status(404).send({
         error: {
-          message: 'Nenhuma avaliação foi encontrada. Não foi possível concluir a atualização',
+          message: 'Nenhum boletim foi encontrado. Não foi possível concluir a atualização',
         }
       })
     }
+
+    await models.bulletin.update({
+      grade1Bim,
+      grade2Bim,
+      grade3Bim,
+      grade4Bim,
+      gradeFinal,
+      classGiven,
+      absence
+    }, { where: { id: id } })
+
+    return res.status(200).send(await models.bulletin.findOne({ where: { id: id } }))
   } catch (err) {
-    logger.error(`Failed to update evaluation by id - Error: ${err.message}`)
+    logger.error(`Failed to update bulletin by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
@@ -183,16 +310,17 @@ exports.update = async (req, res) => {
 
 exports.destroy = async (req, res) => {
   try {
-    logger.info(`bulletinController/destroy - delete evaluation`)
+    logger.info(`bulletinController/destroy - delete bulletin`)
+
     const id = req.params.id;
 
-    const findEvaluation = await models.evaluations.findAll({ where: { id: id } })
+    const findBulletin = await models.bulletin.findOne({ where: { id: id } })
 
-    if (findEvaluation.length !== 0) {
+    if (findBulletin) {
       await models.evaluations.destroy({ where: { id: id } })
 
       res.status(200).send({
-        message: 'Avaliação deletada com sucesso'
+        message: 'Boletim deletado com sucesso'
       })
     } else {
       return res.status(404).send({
@@ -202,7 +330,7 @@ exports.destroy = async (req, res) => {
       })
     }
   } catch (err) {
-    logger.error(`Failed to delete evaluation by id - Error: ${err.message}`)
+    logger.error(`Failed to delete bulletin by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

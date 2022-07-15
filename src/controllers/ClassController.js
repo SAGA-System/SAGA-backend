@@ -1555,7 +1555,7 @@ exports.updateFrequency = async (req, res) => {
       await models.studentclasses.findAll({ where: { idClass: idClass, gang: frequency.gang } }) :
       await models.studentclasses.findAll({ where: { idClass: idClass } })
 
-    if (!frequency.classTheme || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
+    if (!frequency.classTheme || !frequency.bimester || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
@@ -1672,6 +1672,7 @@ exports.updateFrequency = async (req, res) => {
             idClass: idClass,
             classTheme: frequency.classTheme,
             gang: frequency.gang || "",
+            bimester: frequency.bimester,
             date: frequency.date,
             description: frequency.description,
             absents: absentStudents
