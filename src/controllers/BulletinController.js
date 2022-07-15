@@ -234,7 +234,7 @@ exports.update = async (req, res) => {
 
     const id = req.params.id
 
-    let { grade1Bim, grade2Bim, grade3Bim, grade4Bim, gradeFinal, classGiven, absence } = req.body
+    let { grade1Bim, grade2Bim, grade3Bim, grade4Bim, gradeFinal, classesGiven, absence } = req.body
 
     const findBulletin = await models.bulletin.findOne({ where: { id: id } })
 
@@ -244,8 +244,8 @@ exports.update = async (req, res) => {
     grade4Bim = grade4Bim ? grade4Bim.toUpperCase() : findBulletin.grade4Bim
     gradeFinal = gradeFinal ? gradeFinal.toUpperCase() : findBulletin.gradeFinal
 
-    if (classGiven) {
-      if (classGiven > findBulletin.totalClasses) {
+    if (classesGiven) {
+      if (classesGiven > findBulletin.totalClasses) {
         return res.status(400).send({
           error: {
             message: 'O número de aulas dadas não pode ser maior que o número de aulas totais',
@@ -254,14 +254,14 @@ exports.update = async (req, res) => {
       }
 
       if (!absence) {
-        if (classGiven < findBulletin.absence) {
+        if (classesGiven < findBulletin.absence) {
           return res.status(400).send({
             error: {
               message: 'O número de aulas dadas não pode ser menor que o número de faltas atual',
             }
           })
         }
-      } else if (absence > classGiven) {
+      } else if (absence > classesGiven) {
         return res.status(400).send({
           error: {
             message: 'O número de faltas não pode ser maior que o número de aulas dadas',
@@ -269,7 +269,7 @@ exports.update = async (req, res) => {
         })
       }
     } else if (absence) {
-      if (absence > findBulletin.classGiven) {
+      if (absence > findBulletin.classesGiven) {
        return res.status(400).send({
           error: {
             message: 'O número de faltas não pode ser maior que o número de aulas dadas atual',
@@ -292,7 +292,7 @@ exports.update = async (req, res) => {
       grade3Bim,
       grade4Bim,
       gradeFinal,
-      classGiven,
+      classesGiven,
       absence
     }, { where: { id: id } })
 
@@ -317,7 +317,7 @@ exports.destroy = async (req, res) => {
     const findBulletin = await models.bulletin.findOne({ where: { id: id } })
 
     if (findBulletin) {
-      await models.evaluations.destroy({ where: { id: id } })
+      await models.bulletin.destroy({ where: { id: id } })
 
       res.status(200).send({
         message: 'Boletim deletado com sucesso'
@@ -325,7 +325,7 @@ exports.destroy = async (req, res) => {
     } else {
       return res.status(404).send({
         error: {
-          message: 'Avaliação não encontrada ou já deletada'
+          message: 'Boletim não encontrado ou já deletado'
         }
       })
     }
