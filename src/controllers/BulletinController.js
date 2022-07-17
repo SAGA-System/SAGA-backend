@@ -270,7 +270,7 @@ exports.update = async (req, res) => {
       }
     } else if (absence) {
       if (absence > findBulletin.classesGiven) {
-       return res.status(400).send({
+        return res.status(400).send({
           error: {
             message: 'O número de faltas não pode ser maior que o número de aulas dadas atual',
           }
@@ -342,37 +342,80 @@ exports.destroy = async (req, res) => {
 
 exports.assignGrades = async (req, res) => {
   try {
-    logger.info(`bulletinController/assignGrades - assign student grades in the assessment`)
-    const id = req.params.id;
+    logger.info(`bulletinController/assignGrades - assign bimester grades`)
 
-    const { grades } = req.body
+    const { bimester, classTheme, grades } = req.body
 
-    const findEvaluation = await models.evaluations.findOne({ where: { id: id } })
-
-    if (findEvaluation) {
-      const verifyGrades = grades.filter(item => !item.idUser || !item.name)
-      if ((grades.length === findEvaluation.grades.length) && (verifyGrades.length === 0)) {
-        await models.evaluations.update({
-          grades: grades,
-        }, { where: { id: id } })
-
-        res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
-      } else {
-        res.status(400).send({
-          error: {
-            message: 'Faltam informações. Não foi possível atribuir as notas',
-          }
-        })
-      }
-    } else {
-      res.status(404).send({
+    if (!bimester || !classTheme || !grades) {
+      return res.status(400).send({
         error: {
-          message: 'Nenhuma avaliação foi encontrada. Não foi possível atribuir as notas',
+          message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
         }
       })
     }
+
+    if (![1, 2, 3, 4, 'final'].includes(bimester) || grades.length === 0) {
+      return res.status(400).send({
+        error: {
+          message: 'O bimestre informado não é válido'
+        }
+      })
+    }
+
+    for (let grade of grades) {
+      if (!grade.idStudentClasses || !grade.grade) {
+        return res.status(400).send({
+          error: {
+            message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
+          }
+        })
+      }
+
+      const findStudentClasses = await models.studentclasses.findOne({ where: { id: grade.idStudentClasses } })
+
+      if (!findStudentClasses) {
+        return res.status(404).send({
+          error: {
+            message: 'Existem alunos informados que não estão relacionados a essa classe'
+          }
+        })
+      }
+
+      const findBulletin = await models.bulletin.findOne({ where: { idStudentClasses: grade.idStudentClasses, classTheme: classTheme } })
+
+      if (!findBulletin) {
+        return res.status(404).send({
+          error: {
+            message: 'Existem alunos informados que ainda não possui um boletim gerado para essa matéria'
+          }
+        })
+      }
+    }
+
+    for (let grade of grades) {
+      const data = bimester === 1 ? {
+        grade1Bim: grade.grade.toUpperCase()
+      } : bimester === 2 ? {
+        grade2Bim: grade.grade.toUpperCase()
+      } : bimester === 3 ? {
+        grade3Bim: grade.grade.toUpperCase()
+      } : bimester === 4 ? {
+        grade4Bim: grade.grade.toUpperCase()
+      } : bimester === 'final' ? {
+        gradeFinal: grade.grade.toUpperCase()
+      } : undefined
+
+      await models.bulletin.update(data, {
+        where: {
+          idStudentClasses: grade.idStudentClasses,
+          classTheme: classTheme
+        }
+      })
+    }
+
+    return res.status(200).send({ message: 'Notas atribuídas com sucesso' })
   } catch (err) {
-    logger.error(`Failed to assign student grades - Error: ${err.message}`)
+    logger.error(`Failed to assign bimester grades - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {
@@ -380,4 +423,8 @@ exports.assignGrades = async (req, res) => {
       }
     })
   }
+}
+
+exports.bimesterAssessments = async (req, res) => {
+
 }

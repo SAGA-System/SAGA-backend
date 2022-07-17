@@ -9,6 +9,6 @@ router.post('/', login, BulletinController.store)
 router.put('/:id', login, BulletinController.update)
 router.delete('/:id', login, BulletinController.destroy)
 
-router.post('/assignGrades/:id', login, BulletinController.assignGrades)
+router.post('/assignGrades', login, BulletinController.assignGrades)
 
 module.exports = router
