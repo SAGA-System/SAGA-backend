@@ -1551,10 +1551,6 @@ exports.updateFrequency = async (req, res) => {
     const token = req.headers.authorization.slice(7)
     const tokenDecoded = jwt.decode(token)
 
-    let students = frequency.gang ?
-      await models.studentclasses.findAll({ where: { idClass: idClass, gang: frequency.gang } }) :
-      await models.studentclasses.findAll({ where: { idClass: idClass } })
-
     if (!frequency.classTheme || !frequency.bimester || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
       return res.status(400).send({
         error: {
@@ -1563,17 +1559,30 @@ exports.updateFrequency = async (req, res) => {
       })
     }
 
-    let updatedStudents = []
-    for (s of students) {
-      const studentExists = frequency.absences.filter(({ idStudent }) => idStudent === s.idStudent)
+    const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-      if (studentExists.length !== 0) {
-        updatedStudents.push(s)
-      }
+    if (findClass.teachers.filter(item => item.classTheme === frequency.classTheme).length > 1 && !frequency.gang) {
+      return res.status(400).send({
+        error: {
+          message: 'A matéria informada é separada em turmas, mas a turma onde a chamada foi realizada não foi informada'
+        }
+      })
     }
 
-    students = updatedStudents
+    let students = frequency.gang ?
+      await models.studentclasses.findAll({ where: { idClass: idClass, gang: frequency.gang.toUpperCase() } }) :
+      await models.studentclasses.findAll({ where: { idClass: idClass } })
 
+    for (let absentStudent of frequency.absences) {
+      if (!students.some(elem => elem.idStudent === absentStudent.idStudent)) {
+        return res.status(400).send({
+          error: {
+            message: 'Existem estudantes informados como ausentes que não fazem parte dessa classe'
+          }
+        })
+      }
+    }
+    
     frequency.date = new Date(frequency.date).setHours(0, 0, 0, 0)
     frequency.date = moment(frequency.date).format('YYYY-MM-DD HH:mm:ss')
 
@@ -1756,7 +1765,7 @@ exports.generateBulletins = async (req, res) => {
     let errors = []
 
     for (let teacher of classThemeTeachers) {
-      if (!classThemeTeachersNoGang.some(({classTheme}) => convertToSlug(classTheme) === convertToSlug(teacher.classTheme))) {
+      if (!classThemeTeachersNoGang.some(({ classTheme }) => convertToSlug(classTheme) === convertToSlug(teacher.classTheme))) {
         if (!teacher.gang) {
           classThemeTeachersNoGang.push(teacher)
         } else if (classThemeTeachers.filter(({ classTheme }) => classTheme === teacher.classTheme).length !== 2) {
