@@ -54,10 +54,10 @@ function initModels(sequelize) {
   students.hasMany(studentclasses, { as: "studentclasses", foreignKey: "idStudent"});
   bulletin.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
   teachers.hasMany(bulletin, { as: "bulletins", foreignKey: "idTeacher"});
+  schoolcalls.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
+  teachers.hasMany(schoolcalls, { as: "schoolcalls", foreignKey: "idTeacher"});
   files.belongsTo(users, { as: "idUser_user", foreignKey: "idUser"});
   users.hasMany(files, { as: "files", foreignKey: "idUser"});
-  schoolcalls.belongsTo(users, { as: "idUser_user", foreignKey: "idUser"});
-  users.hasMany(schoolcalls, { as: "schoolcalls", foreignKey: "idUser"});
   students.belongsTo(users, { as: "idUser_user", foreignKey: "idUser"});
   users.hasMany(students, { as: "students", foreignKey: "idUser"});
   teachers.belongsTo(users, { as: "idUser_user", foreignKey: "idUser"});

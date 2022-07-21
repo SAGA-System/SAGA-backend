@@ -1548,13 +1548,22 @@ exports.updateFrequency = async (req, res) => {
     const idClass = req.params.idClass
     let { frequency } = req.body
 
-    const token = req.headers.authorization.slice(7)
-    const tokenDecoded = jwt.decode(token)
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
     if (!frequency.classTheme || !frequency.bimester || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
+        }
+      })
+    }
+
+    const idTeacher = await models.teachers.findOne({ where: { idUser: tokenDecoded.id }})
+
+    if (!idTeacher) {
+      return res.status(400).send({
+        error: {
+          message: 'Para realizar a chamada, é necessário um perfil professor ou acima'
         }
       })
     }
@@ -1677,7 +1686,7 @@ exports.updateFrequency = async (req, res) => {
           }, { where: { id: schoolCall.id } })
         } else {
           await models.schoolcalls.create({
-            idUser: tokenDecoded.id,
+            idTeacher: idTeacher,
             idClass: idClass,
             classTheme: frequency.classTheme,
             gang: frequency.gang || "",

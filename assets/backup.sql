@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.28, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.29, for Win64 (x86_64)
 --
 -- Host: localhost    Database: dbnewnsa
 -- ------------------------------------------------------
--- Server version	8.0.28
+-- Server version	8.0.29
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -55,7 +55,7 @@ CREATE TABLE `bulletin` (
 
 LOCK TABLES `bulletin` WRITE;
 /*!40000 ALTER TABLE `bulletin` DISABLE KEYS */;
-INSERT INTO `bulletin` VALUES (16,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',14,200,0,0,0,24,'matemática'),(17,6,'R',NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-17 15:56:06',14,200,246,53,0,24,'lpl'),(18,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',14,100,0,0,0,24,'geografia'),(19,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',14,100,0,0,0,24,'tcc'),(20,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,200,0,0,0,24,'matemática'),(21,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,200,246,68,0,24,'lpl'),(22,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,100,0,0,0,24,'geografia'),(23,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,100,0,0,0,24,'tcc'),(24,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',26,200,0,0,0,24,'matemática'),(26,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',26,100,0,0,0,24,'geografia'),(27,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',26,100,0,0,0,24,'tcc'),(29,6,NULL,NULL,NULL,NULL,NULL,'2022-07-15 21:38:29','2022-07-15 21:38:29',26,200,0,0,0,24,'lpl');
+INSERT INTO `bulletin` VALUES (16,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',14,200,0,0,0,0,''),(17,6,'R',NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-17 15:56:06',14,200,246,53,0,0,''),(18,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',14,100,0,0,0,0,''),(19,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',14,100,0,0,0,0,''),(20,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,200,0,0,0,0,''),(21,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,200,246,68,0,0,''),(22,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,100,0,0,0,0,''),(23,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',15,100,0,0,0,0,''),(24,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',26,200,0,0,0,0,''),(26,6,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',26,100,0,0,0,0,''),(27,3,NULL,NULL,NULL,NULL,NULL,'2022-07-14 20:33:32','2022-07-14 20:33:32',26,100,0,0,0,0,''),(29,6,NULL,NULL,NULL,NULL,NULL,'2022-07-15 21:38:29','2022-07-15 21:38:29',26,200,0,0,0,0,'');
 /*!40000 ALTER TABLE `bulletin` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -112,7 +112,6 @@ CREATE TABLE `evaluations` (
   `grades` json NOT NULL,
   `createdAt` datetime DEFAULT NULL,
   `updatedAt` datetime DEFAULT NULL,
-  `bimester` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idSchoolCall` (`idSchoolCall`),
   CONSTRAINT `evaluations_ibfk_1` FOREIGN KEY (`idSchoolCall`) REFERENCES `schoolcalls` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -125,7 +124,7 @@ CREATE TABLE `evaluations` (
 
 LOCK TABLES `evaluations` WRITE;
 /*!40000 ALTER TABLE `evaluations` DISABLE KEYS */;
-INSERT INTO `evaluations` VALUES (1,22,'Teste avaliação 1','Avaliação escrita','AC, CO, RR','[{\"name\": \"victor\", \"grade\": \"R\", \"idUser\": 56}, {\"name\": \"João Pedro Costa\", \"grade\": \"B\", \"idUser\": 51}]','2022-06-05 13:28:15','2022-07-15 15:02:44',1),(3,22,'Teste avaliação 2','Avaliação escrita','AC, CO','[{\"name\": \"victor\", \"grade\": \"MB\", \"idUser\": 56}, {\"name\": \"João Pedro Costa\", \"grade\": \"B\", \"idUser\": 51}]','2022-06-05 17:06:23','2022-07-15 15:02:59',1);
+INSERT INTO `evaluations` VALUES (1,22,'Teste avaliação 1','Avaliação escrita','AC, CO, RR','[{\"name\": \"victor\", \"grade\": \"R\", \"idUser\": 56}, {\"name\": \"João Pedro Costa\", \"grade\": \"B\", \"idUser\": 51}]','2022-06-05 13:28:15','2022-07-15 15:02:44'),(3,22,'Teste avaliação 2','Avaliação escrita','AC, CO','[{\"name\": \"victor\", \"grade\": \"MB\", \"idUser\": 56}, {\"name\": \"João Pedro Costa\", \"grade\": \"B\", \"idUser\": 51}]','2022-06-05 17:06:23','2022-07-15 15:02:59');
 /*!40000 ALTER TABLE `evaluations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -290,7 +289,7 @@ DROP TABLE IF EXISTS `schoolcalls`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `schoolcalls` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `idUser` int NOT NULL,
+  `idTeacher` int NOT NULL,
   `idClass` int NOT NULL,
   `classTheme` varchar(255) NOT NULL,
   `date` datetime NOT NULL,
@@ -301,11 +300,11 @@ CREATE TABLE `schoolcalls` (
   `gang` varchar(255) NOT NULL,
   `bimester` int NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idUser` (`idUser`),
+  KEY `idUser` (`idTeacher`),
   KEY `idClass` (`idClass`),
-  CONSTRAINT `schoolcalls_ibfk_1` FOREIGN KEY (`idUser`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `schoolcalls_ibfk_1` FOREIGN KEY (`idTeacher`) REFERENCES `teachers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `schoolcalls_ibfk_2` FOREIGN KEY (`idClass`) REFERENCES `class` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -314,7 +313,7 @@ CREATE TABLE `schoolcalls` (
 
 LOCK TABLES `schoolcalls` WRITE;
 /*!40000 ALTER TABLE `schoolcalls` DISABLE KEYS */;
-INSERT INTO `schoolcalls` VALUES (20,40,8,'lpl','2022-05-29 03:00:00','Aula de teste 2','[{\"absence\": 4, \"idStudent\": 18, \"justification\": \"\"}, {\"absence\": 1, \"idStudent\": 13, \"justification\": \"Atestado de covid\"}]','2022-05-29 19:07:49','2022-05-29 21:44:58','',0),(21,40,8,'lpl','2022-06-30 03:00:00','Aula de teste 2','[{\"absence\": 1, \"idStudent\": 13, \"justification\": \"Atestado de covid\"}]','2022-05-29 20:42:53','2022-05-29 21:44:58','',0),(22,40,8,'lpl','2022-07-01 03:00:00','Aula de teste 2','[{\"absence\": 4, \"idStudent\": 13, \"justification\": \"\"}]','2022-05-29 20:43:31','2022-06-05 18:39:02','',0),(33,40,8,'lpl','2022-06-05 03:00:00','Aula de teste 2','[{\"absence\": 2, \"idStudent\": 13, \"justification\": \"\"}]','2022-06-05 21:28:05','2022-06-05 21:28:11','A',0),(34,40,8,'lpl','2022-06-05 03:00:00','Aula de teste 2','[{\"absence\": 1, \"idStudent\": 18, \"justification\": \"\"}]','2022-06-05 21:30:23','2022-06-05 21:30:23','B',0),(35,40,8,'lpl','2022-06-05 03:00:00','Aula de teste 2','[{\"absence\": 2, \"idStudent\": 13, \"justification\": \"\"}, {\"absence\": 2, \"idStudent\": 18, \"justification\": \"\"}]','2022-06-05 21:33:10','2022-06-05 21:33:20','',0),(36,40,8,'lpl','2022-07-15 03:00:00','Aula de teste 3','[{\"absence\": 1, \"idStudent\": 13, \"justification\": \"\"}, {\"absence\": 1, \"idStudent\": 18, \"justification\": \"\"}]','2022-07-15 21:00:37','2022-07-15 21:00:37','',2);
+INSERT INTO `schoolcalls` VALUES (20,3,8,'lpl','2022-05-29 03:00:00','boa aula pa nois','[{\"absence\": 4, \"idStudent\": 18, \"justification\": \"\"}, {\"absence\": 1, \"idStudent\": 13, \"justification\": \"Atestado de covid\"}]','2022-05-29 19:07:49','2022-07-21 15:08:48','',0),(21,40,8,'lpl','2022-06-30 03:00:00','Aula de teste 2','[{\"absence\": 1, \"idStudent\": 13, \"justification\": \"Atestado de covid\"}]','2022-05-29 20:42:53','2022-05-29 21:44:58','',0),(22,40,8,'lpl','2022-07-01 03:00:00','Aula de teste 2','[{\"absence\": 4, \"idStudent\": 13, \"justification\": \"\"}]','2022-05-29 20:43:31','2022-06-05 18:39:02','',0),(33,40,8,'lpl','2022-06-05 03:00:00','Aula de teste 2','[{\"absence\": 2, \"idStudent\": 13, \"justification\": \"\"}]','2022-06-05 21:28:05','2022-06-05 21:28:11','A',0),(34,40,8,'lpl','2022-06-05 03:00:00','Aula de teste 2','[{\"absence\": 1, \"idStudent\": 18, \"justification\": \"\"}]','2022-06-05 21:30:23','2022-06-05 21:30:23','B',0),(35,40,8,'lpl','2022-06-05 03:00:00','Aula de teste 2','[{\"absence\": 2, \"idStudent\": 13, \"justification\": \"\"}, {\"absence\": 2, \"idStudent\": 18, \"justification\": \"\"}]','2022-06-05 21:33:10','2022-06-05 21:33:20','',0),(36,40,8,'lpl','2022-07-15 03:00:00','Aula de teste 3','[{\"absence\": 1, \"idStudent\": 13, \"justification\": \"\"}, {\"absence\": 1, \"idStudent\": 18, \"justification\": \"\"}]','2022-07-15 21:00:37','2022-07-15 21:00:37','',2),(37,40,8,'lpl','2022-07-15 03:00:00','Aula de teste 3','[{\"absence\": 3, \"idStudent\": 27, \"justification\": \"\"}, {\"absence\": 3, \"idStudent\": 18, \"justification\": \"\"}]','2022-07-18 15:19:56','2022-07-18 15:21:06','B',2);
 /*!40000 ALTER TABLE `schoolcalls` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -326,7 +325,7 @@ DROP TABLE IF EXISTS `sequelizemeta`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sequelizemeta` (
-  `name` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`name`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_unicode_ci;
@@ -338,7 +337,7 @@ CREATE TABLE `sequelizemeta` (
 
 LOCK TABLES `sequelizemeta` WRITE;
 /*!40000 ALTER TABLE `sequelizemeta` DISABLE KEYS */;
-INSERT INTO `sequelizemeta` VALUES ('20220508184724-update-foreignKeys-for-delete-cascade.js'),('20220513133823-remove-foreign-key-in-students.js'),('20220515013502-add-new-column-to-users-table.js'),('20220519120858-new-pivot-table-studentClasses.js'),('20220521164121-move-frequencyColumn-to-studentClasses.js'),('20220529145145-new-table-schoolCalls.js'),('20220603101827-ajustment-in-evaluation-table.js'),('20220605180151-add-column-gang-in-schoolcall.js'),('20220618165532-edit-tables-to-integrate-bulletin.js'),('20220622114657-new-columns-in-bulletin.js'),('20220711141124-delete-userpermissions-and-add-roles-and-permissionsroles-table.js'),('20220714170828-edit-evaluations-and-bulletin-tables.js');
+INSERT INTO `sequelizemeta` VALUES ('20220508184724-update-foreignKeys-for-delete-cascade.js'),('20220513133823-remove-foreign-key-in-students.js'),('20220515013502-add-new-column-to-users-table.js'),('20220519120858-new-pivot-table-studentClasses.js'),('20220521164121-move-frequencyColumn-to-studentClasses.js'),('20220529145145-new-table-schoolCalls.js'),('20220603101827-ajustment-in-evaluation-table.js'),('20220605180151-add-column-gang-in-schoolcall.js'),('20220618165532-edit-tables-to-integrate-bulletin.js'),('20220622114657-new-columns-in-bulletin.js'),('20220711141124-delete-userpermissions-and-add-roles-and-permissionsroles-table.js'),('20220714170828-edit-evaluations-and-bulletin-tables.js'),('20220721142728-rename-column-in-school-calls.js');
 /*!40000 ALTER TABLE `sequelizemeta` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -371,7 +370,7 @@ CREATE TABLE `studentclasses` (
 
 LOCK TABLES `studentclasses` WRITE;
 /*!40000 ALTER TABLE `studentclasses` DISABLE KEYS */;
-INSERT INTO `studentclasses` VALUES (14,18,8,'B','2022-05-21 18:20:04','2022-07-15 21:00:37','[{\"name\": \"matemática\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"lpl\", \"absence\": 56, \"classesGiven\": 252, \"totalClasses\": 200}, {\"name\": \"geografia\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}, {\"name\": \"tcc\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}]'),(15,13,8,'A','2022-05-21 18:20:36','2022-07-15 21:00:37','[{\"name\": \"matemática\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"lpl\", \"absence\": 71, \"classesGiven\": 252, \"totalClasses\": 200}, {\"name\": \"geografia\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}, {\"name\": \"tcc\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}]'),(26,27,8,'B','2022-07-12 21:38:21','2022-07-13 00:57:58','[{\"name\": \"matemática\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"lpl\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"geografia\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}, {\"name\": \"tcc\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}]');
+INSERT INTO `studentclasses` VALUES (14,18,8,'B','2022-05-21 18:20:04','2022-07-18 15:21:06','[{\"name\": \"matemática\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"lpl\", \"absence\": 59, \"classesGiven\": 258, \"totalClasses\": 200}, {\"name\": \"geografia\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}, {\"name\": \"tcc\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}]'),(15,13,8,'A','2022-05-21 18:20:36','2022-07-15 21:00:37','[{\"name\": \"matemática\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"lpl\", \"absence\": 71, \"classesGiven\": 252, \"totalClasses\": 200}, {\"name\": \"geografia\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}, {\"name\": \"tcc\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}]'),(26,27,8,'B','2022-07-12 21:38:21','2022-07-18 15:21:06','[{\"name\": \"matemática\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 200}, {\"name\": \"lpl\", \"absence\": 3, \"classesGiven\": 258, \"totalClasses\": 200}, {\"name\": \"geografia\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}, {\"name\": \"tcc\", \"absence\": 0, \"classesGiven\": 0, \"totalClasses\": 100}]');
 /*!40000 ALTER TABLE `studentclasses` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -490,4 +489,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-07-17 13:06:11
+-- Dump completed on 2022-07-21 13:06:13

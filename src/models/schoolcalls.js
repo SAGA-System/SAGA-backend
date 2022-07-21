@@ -7,11 +7,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    idUser: {
+    idTeacher: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'teachers',
         key: 'id'
       }
     },
@@ -64,7 +64,7 @@ module.exports = function(sequelize, DataTypes) {
         name: "idUser",
         using: "BTREE",
         fields: [
-          { name: "idUser" },
+          { name: "idTeacher" },
         ]
       },
       {

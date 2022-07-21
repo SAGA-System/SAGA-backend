@@ -28,13 +28,6 @@ module.exports = {
       onUpdate: 'cascade'
     });
 
-    await queryInterface.addColumn('evaluations', 'bimester', {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-    }, {
-      after: 'id'
-    })
-
     await queryInterface.removeColumn('bulletin', 'evaluations1Bim')
     await queryInterface.removeColumn('bulletin', 'evaluations2Bim')
     await queryInterface.removeColumn('bulletin', 'evaluations3Bim')
@@ -45,7 +38,6 @@ module.exports = {
     await queryInterface.removeConstraint('bulletin', 'bulletin_ibfk_3')
     await queryInterface.removeColumn('bulletin', 'idInstitution')
     await queryInterface.removeColumn('bulletin', 'classTheme')
-    await queryInterface.removeColumn('evaluations', 'bimester')
 
     await queryInterface.addColumn('bulletin', 'evaluations1Bim', {
       type: Sequelize.JSON,

@@ -10,8 +10,7 @@ exports.index = async (req, res) => {
   try {
     logger.info(`evaluationController/index - list all evaluations`)
 
-    const token = req.headers.authorization.slice(7)
-    const tokenDecoded = jwt.decode(token)
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
@@ -94,11 +93,10 @@ exports.store = async (req, res) => {
       idSchoolCall,
       description,
       method,
-      instruments,
-      bimester
+      instruments
     } = req.body
 
-    if (!idSchoolCall || !description || !method || !instruments || !bimester) {
+    if (!idSchoolCall || !description || !method || !instruments) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
@@ -107,6 +105,14 @@ exports.store = async (req, res) => {
     }
 
     const findSchoolCall = await models.schoolcalls.findOne({ where: { id: idSchoolCall } })
+
+    if (!findSchoolCall) {
+      return res.status(400).send({
+        error: {
+          message: 'A aula informada não foi encontrada'
+        }
+      })
+    }
 
     const students = await models.studentclasses.findAll({
       include: {
@@ -128,7 +134,13 @@ exports.store = async (req, res) => {
       }
     })
 
-    const evaluationExists = await models.evaluations.findAll({ where: { idSchoolCall: idSchoolCall, method: method, instruments: instruments } })
+    const evaluationExists = await models.evaluations.findAll({
+      where: {
+        idSchoolCall: idSchoolCall,
+        method: method,
+        instruments: instruments
+      }
+    })
 
     if (evaluationExists.length === 0) {
       const newEvaluation = await models.evaluations.create({
@@ -136,8 +148,7 @@ exports.store = async (req, res) => {
         description: findSchoolCall.description !== description ? description : findSchoolCall.description,
         method: method,
         instruments: instruments,
-        grades: evaluatedStudents,
-        bimester: bimester
+        grades: evaluatedStudents
       })
 
       res.status(201).send({
@@ -169,7 +180,7 @@ exports.update = async (req, res) => {
 
     const id = req.params.id
 
-    const { description, method, instruments, bimester } = req.body
+    const { description, method, instruments } = req.body
 
     const findEvaluation = await models.evaluations.findAll({ where: { id: id } })
 
@@ -178,7 +189,6 @@ exports.update = async (req, res) => {
         description: description,
         method: method,
         instruments: instruments,
-        bimester: bimester,
       }, { where: { id: id } })
 
       res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
@@ -243,7 +253,7 @@ exports.assignGrades = async (req, res) => {
     if (findEvaluation) {
       const verifyGrades = grades.filter(item => !item.idUser || !item.name)
 
-      for(let i = 0; i < grades.length; i++) {
+      for (let i = 0; i < grades.length; i++) {
         grades[i] = {
           idUser: grades[i].idUser,
           name: grades[i].name,
