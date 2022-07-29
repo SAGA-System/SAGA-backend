@@ -251,24 +251,36 @@ exports.assignGrades = async (req, res) => {
     const findEvaluation = await models.evaluations.findOne({ where: { id: id } })
 
     if (findEvaluation) {
-      const verifyGrades = grades.filter(item => !item.idUser || !item.name)
+      const verifyGrades = grades.filter(item => !item.idUser || !item.grade)
+
+      if (verifyGrades.length > 0) {
+        return res.status(400).send({
+          error: {
+            message: 'Faltam informações. Não foi possível atribuir as notas',
+          }
+        })
+      }
 
       for (let i = 0; i < grades.length; i++) {
-        grades[i] = {
-          idUser: grades[i].idUser,
-          name: grades[i].name,
-          grade: grades[i].grade.toUpperCase()
+        if(grades[i].idUser) {
+          const user = await models.users.findOne({ where: { id: grades[i].idUser}})
+
+          grades[i] = {
+            idUser: grades[i].idUser,
+            name: user.name,
+            grade: grades[i].grade.toUpperCase()
+          }
         }
       }
 
-      if ((grades.length === findEvaluation.grades.length) && (verifyGrades.length === 0)) {
+      if (grades.length === findEvaluation.grades.length) {
         await models.evaluations.update({
           grades: grades,
         }, { where: { id: id } })
 
-        res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
+        return res.status(200).send(await models.evaluations.findOne({ where: { id: id } }))
       } else {
-        res.status(400).send({
+        return res.status(400).send({
           error: {
             message: 'Faltam informações. Não foi possível atribuir as notas',
           }

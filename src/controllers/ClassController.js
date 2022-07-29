@@ -1558,9 +1558,9 @@ exports.updateFrequency = async (req, res) => {
       })
     }
 
-    const idTeacher = await models.teachers.findOne({ where: { idUser: tokenDecoded.id }})
+    const teacher = await models.teachers.findOne({ where: { idUser: tokenDecoded.id }})
 
-    if (!idTeacher) {
+    if (!teacher) {
       return res.status(400).send({
         error: {
           message: 'Para realizar a chamada, é necessário um perfil professor ou acima'
@@ -1686,7 +1686,7 @@ exports.updateFrequency = async (req, res) => {
           }, { where: { id: schoolCall.id } })
         } else {
           await models.schoolcalls.create({
-            idTeacher: idTeacher,
+            idTeacher: teacher.id,
             idClass: idClass,
             classTheme: frequency.classTheme,
             gang: frequency.gang || "",
@@ -1714,6 +1714,8 @@ exports.updateFrequency = async (req, res) => {
     }
   } catch (err) {
     logger.error(`Failed to update frequency - Error: ${err.message}`)
+
+    console.log(err)
 
     return res.status(500).send({
       error: {
