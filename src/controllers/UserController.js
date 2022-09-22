@@ -1,7 +1,9 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
+require('dotenv').config()
 
+const AwsS3 = require("../../config/aws")
 const api = require('../../config/api')
 const logger = require('../resources/logger')
 const normalizer = require('../resources/normalizer')
@@ -129,6 +131,37 @@ exports.store = async (req, res) => {
       schoolYear,
       situation,
     } = req.body
+
+    const avatarFile = req.file
+
+    const AvatarKey = `Avatar-${new Date().getTime()}-${avatarFile.originalname}`
+
+    const awsParams = {
+      Bucket: process.env.AWS_BUCKET_AVATAR,
+      Key: AvatarKey,
+      Body: avatarFile.buffer,
+    }
+
+    await new Promise((resolve, reject) => {
+      AwsS3.upload(
+        awsParams,
+        function (error, data) {
+          if (error) return reject(error);
+          resolve(data);
+        }
+      );
+    });
+
+    const url = AwsS3.getSignedUrl("getObject", {
+      Bucket: process.env.AWS_BUCKET_AVATAR,
+      Key: AvatarKey,
+    })
+
+    return res.status(200).send({
+      message: 'sucesso',
+      AvatarKey,
+      url
+    })
 
     // criação do usuário - roles
     // admin
@@ -639,3 +672,22 @@ exports.resetPassword = async (req, res) => {
     })
   }
 }
+
+//{	
+// 	"idInstitution": 24,
+// 	"name": "robertinho",
+// 	"password": "123456", 
+// 	"cpf": "035.243.810-06",
+// 	"rg": "85.698.985-9",
+// 	"idRole": 6,
+// 	"email": "waw387ggas45d7@roxoas.com", 
+// 	"phone": "18 99999-9999", 
+// 	"street": "Rua a", 
+// 	"number": 11, 
+// 	"district": "Centro",  
+// 	"city": "Adamantina",
+// 	"idClass": 8,
+// 	"ra": "5959595-7",
+// 	"situation": "cursando",
+// 	"schoolYear": 3
+// }

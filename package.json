@@ -10,6 +10,7 @@
   "author": "Carlos Eduardo Zulian",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.1218.0",
     "axios": "^0.26.1",
     "bcrypt": "^5.0.1",
     "dotenv": "^16.0.0",
@@ -17,6 +18,7 @@
     "express-pino-logger": "^7.0.0",
     "jsonwebtoken": "^8.5.1",
     "moment": "^2.29.3",
+    "multer": "^1.4.5-lts.1",
     "mysql2": "^2.3.3",
     "nodemailer": "^6.7.5",
     "nodemailer-express-handlebars": "^5.0.0",
