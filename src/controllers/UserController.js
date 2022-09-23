@@ -134,35 +134,6 @@ exports.store = async (req, res) => {
 
     const avatarFile = req.file
 
-    const AvatarKey = `Avatar-${new Date().getTime()}-${avatarFile.originalname}`
-
-    const awsParams = {
-      Bucket: process.env.AWS_BUCKET_AVATAR,
-      Key: AvatarKey,
-      Body: avatarFile.buffer,
-    }
-
-    await new Promise((resolve, reject) => {
-      AwsS3.upload(
-        awsParams,
-        function (error, data) {
-          if (error) return reject(error);
-          resolve(data);
-        }
-      );
-    });
-
-    const url = AwsS3.getSignedUrl("getObject", {
-      Bucket: process.env.AWS_BUCKET_AVATAR,
-      Key: AvatarKey,
-    })
-
-    return res.status(200).send({
-      message: 'sucesso',
-      AvatarKey,
-      url
-    })
-
     // criação do usuário - roles
     // admin
     // principal
@@ -222,7 +193,62 @@ exports.store = async (req, res) => {
             })
           }
 
-          const user = await models.users.create({
+          let AvatarKey = ''
+
+          if (avatarFile) {
+            AvatarKey = `Avatar-${new Date().getTime()}-${avatarFile?.originalname}`
+
+            const awsParams = {
+              Bucket: process.env.AWS_BUCKET_AVATAR,
+              Key: AvatarKey,
+              Body: avatarFile.buffer,
+            }
+
+            await new Promise((resolve, reject) => {
+              AwsS3.upload(
+                awsParams,
+                function (error, data) {
+                  if (error) return reject(error);
+                  resolve(data);
+                }
+              );
+            });
+          }
+
+          function getAvatarProps(type) {
+            if (type === 'key') {
+              if (AvatarKey) {
+                return AvatarKey
+              } else {
+                if ([1, 2, 3, 4, 5].includes(Number(idRole))) {
+                  return process.env.DEFAULT_AVATAR_KEY
+                } else {
+                  return process.env.DEFAULT_AVATAR_USER_KEY
+                }
+              }
+            } else if (type === 'url') {
+              if (AvatarKey) {
+                return AwsS3.getSignedUrl("getObject", {
+                  Bucket: process.env.AWS_BUCKET_AVATAR,
+                  Key: AvatarKey,
+                })
+              } else {
+                if ([1, 2, 3, 4, 5].includes(Number(idRole))) {
+                  return AwsS3.getSignedUrl("getObject", {
+                    Bucket: process.env.AWS_BUCKET_AVATAR,
+                    Key: process.env.DEFAULT_AVATAR_KEY,
+                  })
+                } else {
+                  return AwsS3.getSignedUrl("getObject", {
+                    Bucket: process.env.AWS_BUCKET_AVATAR,
+                    Key: process.env.DEFAULT_AVATAR_USER_KEY,
+                  })
+                }
+              }
+            }
+          }
+
+          let user = await models.users.create({
             idInstitution: idInstitution,
             name: name,
             password: hash,
@@ -235,18 +261,21 @@ exports.store = async (req, res) => {
             number: number,
             district: district,
             complement: complement,
-            city: city
+            city: city,
+            avatarKey: getAvatarProps('key'),
           })
 
           delete user.dataValues.password;
 
+          user.dataValues = {...user.dataValues, avatarUrl: getAvatarProps('url')}
+
           try {
-            if ([2, 3, 4].includes(idRole)) {
+            if ([2, 3, 4].includes(Number(idRole))) {
               await api.post('/teacher', {
                 idUser: user.id,
                 speciality: speciality,
               }, { headers: { authorization: token } });
-            } else if (idRole === 6) {
+            } else if (Number(idRole) === 6) {
               await api.post('/student', {
                 idUser: user.id,
                 idClass: idClass,
@@ -449,16 +478,16 @@ exports.destroy = async (req, res) => {
     const findUser = await models.users.findOne({ where: { id: id } })
 
     if (findUser) {
-      if(([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
+      if (([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
         const roleId = findUser.roleId
         const Classes = await models.class_.findAll()
-  
+
         const ids = Classes.filter(({ teachers, students }) => roleId === 6 ? students.length > 0 && students.map(item => {
           return item.id === Number(id)
         }).some(elem => elem === true) : teachers.length > 0 && teachers.map(item => {
           return item.id === Number(id)
         }).some(elem => elem === true))
-  
+
         for (let i = 0; i < ids.length; i++) {
           await api.delete(`/class/delete${roleId === 6 ? 'Student' : 'Teacher'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
         }
@@ -490,18 +519,18 @@ exports.destroy = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     //sync database table columns with models
-      //await models.bulletin.sync({alter: true})
-      //await models.class_.sync({alter: true})
-      //await models.evaluations.sync({alter: true})
-      //await models.files.sync({alter: true})
-      //await models.institution.sync({alter: true})
-      //await models.permissions.sync({alter: true})
-      //await models.schoolcalls.sync({alter: true})
-      //await models.studentclasses.sync({alter: true})
-      //await models.students.sync({alter: true})
-      //await models.teachers.sync({alter: true})
-      //await models.userpermissions.sync({alter: true})
-      //await models.users.sync({alter: true})
+    //await models.bulletin.sync({alter: true})
+    //await models.class_.sync({alter: true})
+    //await models.evaluations.sync({alter: true})
+    //await models.files.sync({alter: true})
+    //await models.institution.sync({alter: true})
+    //await models.permissions.sync({alter: true})
+    //await models.schoolcalls.sync({alter: true})
+    //await models.studentclasses.sync({alter: true})
+    //await models.students.sync({alter: true})
+    //await models.teachers.sync({alter: true})
+    //await models.userpermissions.sync({alter: true})
+    //await models.users.sync({alter: true})
 
     logger.info(`UserController/login - login`)
 
@@ -673,18 +702,18 @@ exports.resetPassword = async (req, res) => {
   }
 }
 
-//{	
+//{
 // 	"idInstitution": 24,
 // 	"name": "robertinho",
-// 	"password": "123456", 
+// 	"password": "123456",
 // 	"cpf": "035.243.810-06",
 // 	"rg": "85.698.985-9",
 // 	"idRole": 6,
-// 	"email": "waw387ggas45d7@roxoas.com", 
-// 	"phone": "18 99999-9999", 
-// 	"street": "Rua a", 
-// 	"number": 11, 
-// 	"district": "Centro",  
+// 	"email": "waw387ggas45d7@roxoas.com",
+// 	"phone": "18 99999-9999",
+// 	"street": "Rua a",
+// 	"number": 11,
+// 	"district": "Centro",
 // 	"city": "Adamantina",
 // 	"idClass": 8,
 // 	"ra": "5959595-7",

@@ -72,7 +72,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'roles',
         key: 'id'
       }
-    }
+    },
+    avatarKey: {
+      type: DataTypes.STRING(255),
+      allowNull: false
+    },
   }, {
     sequelize,
     tableName: 'users',
