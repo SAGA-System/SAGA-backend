@@ -91,6 +91,13 @@ exports.show = async (req, res) => {
     }
     user = { ...user["dataValues"], roles: roles }
 
+    const avatarUrl = AwsS3.getSignedUrl("getObject", {
+      Bucket: process.env.AWS_BUCKET_AVATAR,
+      Key: user.avatarKey,
+    })
+
+    user = { ...user, avatarUrl: avatarUrl }
+
     delete user.password
 
     return res.status(200).send(user)
@@ -220,10 +227,10 @@ exports.store = async (req, res) => {
               if (AvatarKey) {
                 return AvatarKey
               } else {
-                if ([1, 2, 3, 4, 5].includes(Number(idRole))) {
-                  return process.env.DEFAULT_AVATAR_KEY
-                } else {
+                if (Number(idRole) === 6) {
                   return process.env.DEFAULT_AVATAR_USER_KEY
+                } else {
+                  return process.env.DEFAULT_AVATAR_KEY
                 }
               }
             } else if (type === 'url') {
@@ -233,15 +240,15 @@ exports.store = async (req, res) => {
                   Key: AvatarKey,
                 })
               } else {
-                if ([1, 2, 3, 4, 5].includes(Number(idRole))) {
+                if (Number(idRole) === 6) {
                   return AwsS3.getSignedUrl("getObject", {
                     Bucket: process.env.AWS_BUCKET_AVATAR,
-                    Key: process.env.DEFAULT_AVATAR_KEY,
+                    Key: process.env.DEFAULT_AVATAR_USER_KEY,
                   })
                 } else {
                   return AwsS3.getSignedUrl("getObject", {
                     Bucket: process.env.AWS_BUCKET_AVATAR,
-                    Key: process.env.DEFAULT_AVATAR_USER_KEY,
+                    Key: process.env.DEFAULT_AVATAR_KEY,
                   })
                 }
               }
@@ -267,7 +274,7 @@ exports.store = async (req, res) => {
 
           delete user.dataValues.password;
 
-          user.dataValues = {...user.dataValues, avatarUrl: getAvatarProps('url')}
+          user.dataValues = { ...user.dataValues, avatarUrl: getAvatarProps('url') }
 
           try {
             if ([2, 3, 4].includes(Number(idRole))) {
@@ -350,6 +357,8 @@ exports.update = async (req, res) => {
       city,
     } = req.body
 
+    const avatarFile = req.file
+
     const findUser = await models.users.findOne({ where: { id: id } })
 
     //normalize data
@@ -382,6 +391,54 @@ exports.update = async (req, res) => {
       }
     }
 
+    let AvatarKey
+
+    if (avatarFile) {
+      AvatarKey = `Avatar-${new Date().getTime()}-${avatarFile?.originalname}`
+
+      const awsParams = {
+        Bucket: process.env.AWS_BUCKET_AVATAR,
+        Key: AvatarKey,
+        Body: avatarFile.buffer,
+      }
+
+      await new Promise((resolve, reject) => {
+        AwsS3.upload(
+          awsParams,
+          function (error, data) {
+            if (error) return reject(error);
+            resolve(data);
+          }
+        );
+      });
+
+      if (findUser.avatarKey && (
+        findUser.avatarKey !== process.env.DEFAULT_AVATAR_USER_KEY &&
+        findUser.avatarKey !== process.env.DEFAULT_AVATAR_KEY)
+      ) {
+        const awsDeleteParams = {
+          Bucket: process.env.AWS_BUCKET_AVATAR,
+          Key: findUser.avatarKey,
+        }
+
+        await new Promise((resolve, reject) => {
+          AwsS3.deleteObject(
+            awsDeleteParams,
+            function (error, data) {
+              if (error) return reject(error);
+              resolve(data);
+            }
+          );
+        });
+      }
+    } else if (!findUser.avatarKey) {
+      if (idRole ? Number(idRole) === 6 : Number(findUser.idRole) === 6) {
+        AvatarKey = process.env.DEFAULT_AVATAR_USER_KEY
+      } else {
+        AvatarKey = process.env.DEFAULT_AVATAR_KEY
+      }
+    }
+
     if (findUser) {
       await models.users.update({
         name: name,
@@ -393,7 +450,8 @@ exports.update = async (req, res) => {
         number: number,
         district: district,
         complement: complement,
-        city: city
+        city: city,
+        avatarKey: AvatarKey
       }, { where: { id: id } })
 
       const updatedUser = await models.users.findOne({ where: { id: id } })
@@ -701,22 +759,3 @@ exports.resetPassword = async (req, res) => {
     })
   }
 }
-
-//{
-// 	"idInstitution": 24,
-// 	"name": "robertinho",
-// 	"password": "123456",
-// 	"cpf": "035.243.810-06",
-// 	"rg": "85.698.985-9",
-// 	"idRole": 6,
-// 	"email": "waw387ggas45d7@roxoas.com",
-// 	"phone": "18 99999-9999",
-// 	"street": "Rua a",
-// 	"number": 11,
-// 	"district": "Centro",
-// 	"city": "Adamantina",
-// 	"idClass": 8,
-// 	"ra": "5959595-7",
-// 	"situation": "cursando",
-// 	"schoolYear": 3
-// }
