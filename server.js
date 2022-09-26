@@ -6,5 +6,5 @@ const app = require('./app')
 
 const server = http.createServer(app);
 
-console.log(`\nlistening on http://localhost:${port}\n`);
+console.log(`\nlistening on http://localhost:${port}/api\n`);
 server.listen(port);

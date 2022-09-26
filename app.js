@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+const cors = require('cors');
+require('dotenv').config()
 
 // routes
 const authRoutes = require('./src/routes/auth')
@@ -13,31 +15,38 @@ const evaluationRoutes = require('./src/routes/evaluation')
 const bulletinRoutes = require('./src/routes/bulletin')
 const schoolCallRoutes = require('./src/routes/schoolCall')
 
+app.use(function (req, res, next) {
+  // Website you wish to allow to connect
+  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
+
+  // Request methods you wish to allow
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+
+  // Request headers you wish to allow
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+  // Set to true if you need the website to include cookies in the requests sent
+  // to the API (e.g. in case you use sessions)
+  res.setHeader('Access-Control-Allow-Credentials', false);
+
+  // Pass to next layer of middleware
+  next();
+});
+
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json())
 
-app.use('/auth', authRoutes)
-app.use('/institution', institutionRoutes)
-app.use('/class', classRoutes)
-app.use('/teacher', teachersRoutes)
-app.use('/student', studentRoutes)
-app.use('/permission', permissionRoutes)
-app.use('/roles', rolesRoutes)
-app.use('/evaluation', evaluationRoutes)
-app.use('/bulletin', bulletinRoutes)
-app.use('/schoolcalls', schoolCallRoutes)
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Header', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE')
-    return res.status(200)
-  }
-
-  next()
-})
+// base routes config
+app.use('/api/auth', authRoutes)
+app.use('/api/institution', institutionRoutes)
+app.use('/api/class', classRoutes)
+app.use('/api/teacher', teachersRoutes)
+app.use('/api/student', studentRoutes)
+app.use('/api/permission', permissionRoutes)
+app.use('/api/roles', rolesRoutes)
+app.use('/api/evaluation', evaluationRoutes)
+app.use('/api/bulletin', bulletinRoutes)
+app.use('/api/schoolcalls', schoolCallRoutes)
 
 app.use((req, res, next) => {
   const err = new Error('Rota não encontrada')

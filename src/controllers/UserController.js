@@ -94,6 +94,7 @@ exports.show = async (req, res) => {
     const avatarUrl = AwsS3.getSignedUrl("getObject", {
       Bucket: process.env.AWS_BUCKET_AVATAR,
       Key: user.avatarKey,
+      Expires: 60 * 60 * 3
     })
 
     user = { ...user, avatarUrl: avatarUrl }
@@ -238,17 +239,20 @@ exports.store = async (req, res) => {
                 return AwsS3.getSignedUrl("getObject", {
                   Bucket: process.env.AWS_BUCKET_AVATAR,
                   Key: AvatarKey,
+                  Expires: 60 * 60 * 3
                 })
               } else {
                 if (Number(idRole) === 6) {
                   return AwsS3.getSignedUrl("getObject", {
                     Bucket: process.env.AWS_BUCKET_AVATAR,
                     Key: process.env.DEFAULT_AVATAR_USER_KEY,
+                    Expires: 60 * 60 * 3
                   })
                 } else {
                   return AwsS3.getSignedUrl("getObject", {
                     Bucket: process.env.AWS_BUCKET_AVATAR,
                     Key: process.env.DEFAULT_AVATAR_KEY,
+                    Expires: 60 * 60 * 3
                   })
                 }
               }
@@ -593,21 +597,37 @@ exports.login = async (req, res) => {
     logger.info(`UserController/login - login`)
 
     const {
-      id,
+      role,
+      code,
+      rm,
       password,
     } = req.body
 
-    const findUser = await models.users.findAll({ where: { id: id } })
-
-    if (findUser.length === 0) {
-      return res.status(401).send({
+    if (!role || !code || !rm || !password) {
+      return res.status(400).send({
         error: {
-          message: 'Email ou senha incorretos'
+          message: 'Faltam dados para entrar no sistema'
         }
       })
     }
 
-    bcrypt.compare(password, findUser[0].password, (err, results) => {
+    const findUser = await models.users.findOne({
+      where: {
+        id: rm,
+        idRole: role,
+        idInstitution: code
+      }
+    })
+
+    if (!findUser) {
+      return res.status(400).send({
+        error: {
+          message: 'Usuário não encontrado, verifique suas credenciais e tente novamente'
+        }
+      })
+    }
+
+    bcrypt.compare(password, findUser.password, (err, results) => {
       if (err) {
         return res.status(401).send({
           error: {
@@ -617,13 +637,23 @@ exports.login = async (req, res) => {
       }
       if (results) {
         const token = jwt.sign({
-          id: findUser[0].id,
+          id: findUser.id,
         }, process.env.JWT_KEY, {
           expiresIn: "3h"
         })
+
+        const avatarUrl = AwsS3.getSignedUrl("getObject", {
+          Bucket: process.env.AWS_BUCKET_AVATAR,
+          Key: findUser.avatarKey,
+          Expires: 60 * 60 * 3
+        })
+
+        const user = { ...findUser['dataValues'], avatarUrl: avatarUrl }
+
         return res.status(200).send({
           message: 'Autenticado com sucesso',
-          token: token
+          token: token,
+          user: user
         })
       }
       return res.status(401).send({ message: 'Email ou senha incorretos' })
