@@ -31,6 +31,7 @@ router.delete('/:id', login, UserController.destroy)
 
 router.post('/login', UserController.login)
 router.post('/forgotPassword', UserController.forgotPassword)
+router.get('/validateTokenResetPassword/:token', UserController.validateTokenResetPassword)
 router.post('/resetPassword', UserController.resetPassword)
 
 module.exports = router

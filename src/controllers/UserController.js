@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const crypto = require('crypto')
+const CryptoJS = require('crypto-js')
 require('dotenv').config()
 
 const AwsS3 = require("../../config/aws")
@@ -656,7 +656,11 @@ exports.login = async (req, res) => {
           user: user
         })
       }
-      return res.status(401).send({ message: 'Email ou senha incorretos' })
+      return res.status(401).send({
+        error: {
+          message: 'Não foi possível entrar no sistema'
+        }
+      })
     })
   } catch (err) {
     logger.error(`Failed to login user - Error: ${err.message}`)
@@ -672,26 +676,36 @@ exports.login = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     logger.info(`UserController/forgotPassword - send a mail to reset password`)
-    const { email } = req.body;
+    const {
+      role,
+      code,
+      rm,
+      email
+    } = req.body;
 
-    const findUser = await models.users.findOne({ where: { email: email } })
+    const findUser = await models.users.findOne({
+      where: {
+        id: rm,
+        idRole: role,
+        idInstitution: code
+      }
+    })
 
     if (findUser) {
-      const token = crypto.randomBytes(20).toString('hex')
-
       const now = new Date();
       now.setHours(now.getHours() - 2)
 
+      const token = CryptoJS.AES.encrypt(JSON.stringify({idUser: rm, expiresIn: now}), JSON.stringify({idUser: rm, expiresIn: now}));
+
+      return console.log(token)
+
       await models.users.update({
-        resetPassword: {
-          token: token,
-          expiresIn: now
-        }
+        resetPassword: token,
       }, { where: { email: email } })
 
       mailer.sendMail({
         to: email,
-        from: 'zulianc09@gmail.com',
+        from: 'SagaSolutions@gmail.com',
         subject: 'Solicitação de Alteração de Senha',
         template: 'forgotPassword',
         context: { token },
@@ -706,12 +720,12 @@ exports.forgotPassword = async (req, res) => {
           })
         }
 
-        return res.send()
+        return res.send({ message: `Solicitação de nova senha enviada com sucesso` })
       })
     } else {
       return res.status(404).send({
         error: {
-          message: 'Nenhum usuário foi encontrado. verifique o email e tente novamente',
+          message: 'Nenhum usuário foi encontrado. verifique as credenciais informadas e tente novamente',
         }
       })
     }
@@ -726,59 +740,92 @@ exports.forgotPassword = async (req, res) => {
   }
 }
 
-exports.resetPassword = async (req, res) => {
+exports.validateTokenResetPassword = async (req, res) => {
   try {
-    logger.info(`UserController/resetPassword - reset password`)
-    const { email, token, password } = req.body
+    logger.info(`UserController/validateTokenResetPassword - validate token reset password`)
+    const { token } = req.params
 
-    const user = await models.users.findOne({ where: { email: email } })
+    const user = await models.users.findOne({ where: { resetPassword: token } })
 
     if (user) {
-      if (token === user.resetPassword.token) {
-        const now = new Date()
-        now.setHours(now.getHours() - 3)
-        const expiresIn = new Date(user.resetPassword.expiresIn)
+      const now = new Date()
+      now.setHours(now.getHours() - 3)
+      const expiresIn = new Date(user.resetPassword.expiresIn)
 
-        if (expiresIn >= now) {
-          bcrypt.hash(password, 10, async (errBcrypt, hash) => {
-            if (errBcrypt) {
-              return res.status(500).send({
-                error: {
-                  message: errBcrypt
-                }
-              })
-            }
+      if (expiresIn >= now) {
+        return res.status(200).send({
+          message: 'Token válido!'
+        })
 
-            await models.users.update({
-              password: hash
-            }, { where: { email: email } })
-
-            return res.status(200).send({
-              message: 'Senha atualizada com sucesso!'
-            })
-          })
-        } else {
-          return res.status(400).send({
-            error: {
-              message: 'Token expirado. Solicite novamente o reset de senha'
-            }
-          })
-        }
       } else {
         return res.status(400).send({
           error: {
-            message: 'Token inválido'
+            message: 'Token expirado. Solicite novamente o reset de senha'
           }
         })
       }
     } else {
-      return res.status(404).send({
+      return res.status(400).send({
         error: {
-          message: 'Nenhum usuário foi encontrado. verifique o email e tente novamente',
+          message: 'Token inválido'
         }
       })
     }
+  } catch (err) {
+    logger.error(`Failed to validate token reset user password  - Error: ${err.message}`)
 
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.resetPassword = async (req, res) => {
+  try {
+    logger.info(`UserController/resetPassword - reset password`)
+    const { token, password } = req.body
+
+    const user = await models.users.findOne({ where: { token: token } })
+
+    if (user.resetPassword.token) {
+      const now = new Date()
+      now.setHours(now.getHours() - 3)
+      const expiresIn = new Date(user.resetPassword.expiresIn)
+
+      if (expiresIn >= now) {
+        bcrypt.hash(password, 10, async (errBcrypt, hash) => {
+          if (errBcrypt) {
+            return res.status(500).send({
+              error: {
+                message: errBcrypt
+              }
+            })
+          }
+
+          await models.users.update({
+            password: hash
+          }, { where: { token: token } })
+
+          return res.status(200).send({
+            message: 'Senha atualizada com sucesso!'
+          })
+        })
+      } else {
+        return res.status(400).send({
+          error: {
+            message: 'Token expirado. Solicite novamente o reset de senha'
+          }
+        })
+      }
+    } else {
+      return res.status(400).send({
+        error: {
+          message: 'Token inválido'
+        }
+      })
+    }
   } catch (err) {
     logger.error(`Failed to reset user password - Error: ${err.message}`)
 
