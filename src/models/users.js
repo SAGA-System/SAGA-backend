@@ -62,7 +62,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false
     },
     resetPassword: {
-      type: DataTypes.JSON,
+      type: DataTypes.STRING,
       allowNull: true
     },
     idRole: {

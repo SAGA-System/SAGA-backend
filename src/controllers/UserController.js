@@ -695,13 +695,15 @@ exports.forgotPassword = async (req, res) => {
       const now = new Date();
       now.setHours(now.getHours() - 2)
 
-      const token = CryptoJS.AES.encrypt(JSON.stringify({idUser: rm, expiresIn: now}), JSON.stringify({idUser: rm, expiresIn: now}));
-
-      return console.log(token)
+      const token = jwt.sign({
+        idUser: findUser.id,
+      }, process.env.JWT_KEY, {
+        expiresIn: "3h"
+      })
 
       await models.users.update({
         resetPassword: token,
-      }, { where: { email: email } })
+      }, { where: { id: findUser.id } })
 
       mailer.sendMail({
         to: email,
@@ -745,14 +747,16 @@ exports.validateTokenResetPassword = async (req, res) => {
     logger.info(`UserController/validateTokenResetPassword - validate token reset password`)
     const { token } = req.params
 
-    const user = await models.users.findOne({ where: { resetPassword: token } })
+    const { idUser, exp } = jwt.decode(token)
+
+    const user = await models.users.findOne({ where: { id: idUser } })
 
     if (user) {
       const now = new Date()
       now.setHours(now.getHours() - 3)
-      const expiresIn = new Date(user.resetPassword.expiresIn)
+      const expiresIn = new Date(exp)
 
-      if (expiresIn >= now) {
+      if ((expiresIn.getTime() * 1000) >= now.getTime()) {
         return res.status(200).send({
           message: 'Token válido!'
         })
@@ -787,14 +791,16 @@ exports.resetPassword = async (req, res) => {
     logger.info(`UserController/resetPassword - reset password`)
     const { token, password } = req.body
 
-    const user = await models.users.findOne({ where: { token: token } })
+    const { exp, idUser } = jwt.decode(token)
 
-    if (user.resetPassword.token) {
+    const user = await models.users.findOne({ where: { id: idUser } })
+
+    if (user.resetPassword) {
       const now = new Date()
       now.setHours(now.getHours() - 3)
-      const expiresIn = new Date(user.resetPassword.expiresIn)
+      const expiresIn = new Date(exp)
 
-      if (expiresIn >= now) {
+      if ((expiresIn.getTime() * 1000) >= now.getTime()) {
         bcrypt.hash(password, 10, async (errBcrypt, hash) => {
           if (errBcrypt) {
             return res.status(500).send({
@@ -806,7 +812,7 @@ exports.resetPassword = async (req, res) => {
 
           await models.users.update({
             password: hash
-          }, { where: { token: token } })
+          }, { where: { id: idUser } })
 
           return res.status(200).send({
             message: 'Senha atualizada com sucesso!'
