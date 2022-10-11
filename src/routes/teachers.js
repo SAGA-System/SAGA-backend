@@ -9,8 +9,8 @@ router.post('/', login, TeachersController.store)
 router.put('/:id', login, TeachersController.update)
 
 //update lessons column
-router.post('/addLessons/:id', login, TeachersController.addLessons)
+// router.post('/addLessons/:id', login, TeachersController.addLessons)
 router.put('/updateLessons/:id', login, TeachersController.updateLessons)
-router.delete('/deleteLessons/:id', login, TeachersController.deleteLessons)
+// router.delete('/deleteLessons/:id', login, TeachersController.deleteLessons)
 
 module.exports = router

@@ -1,35 +1,43 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('files', {
+  return sequelize.define('teacherLessons', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    idUser: {
+    idTeacher: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'teachers',
         key: 'id'
       }
     },
-    name: {
-      type: DataTypes.STRING(255),
-      allowNull: false
+    monday: {
+      type: DataTypes.JSON,
+      allowNull: true
     },
-    description: {
-      type: DataTypes.STRING(255),
-      allowNull: false
+    tuesday: {
+      type: DataTypes.JSON,
+      allowNull: true
     },
-    file: {
-      type: DataTypes.BLOB,
-      allowNull: false
+    wednesday: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    thursday: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    friday: {
+      type: DataTypes.JSON,
+      allowNull: true
     }
   }, {
     sequelize,
-    tableName: 'files',
+    tableName: 'teacherLessons',
     timestamps: true,
     indexes: [
       {
@@ -41,10 +49,10 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "Files_fk0",
+        name: "idTeacher",
         using: "BTREE",
         fields: [
-          { name: "idUser" },
+          { name: "idTeacher" },
         ]
       },
     ]

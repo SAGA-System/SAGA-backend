@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define('users', {
     id: {
       autoIncrement: true,
@@ -27,8 +27,8 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: "cpf"
-    }, 
-    rg: {      
+    },
+    rg: {
       type: DataTypes.STRING(255),
       allowNull: false
     },
@@ -62,7 +62,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false
     },
     resetPassword: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(255),
       allowNull: true
     },
     idRole: {
@@ -76,7 +76,7 @@ module.exports = function(sequelize, DataTypes) {
     avatarKey: {
       type: DataTypes.STRING(255),
       allowNull: false
-    },
+    }
   }, {
     sequelize,
     tableName: 'users',

@@ -64,7 +64,64 @@ exports.show = async (req, res) => {
       })
     }
 
-    res.status(200).send(bulletin)
+    function calcAverageGrade() {
+      function handleSwitch(item) {
+        switch (item) {
+          case 'I': {
+            return 0
+          }
+          case 'R': {
+            return 1
+          }
+          case 'B': {
+            return 2
+          }
+          case 'MB': {
+            return 3
+          }
+          default: {
+            return -1
+          }
+        }
+      }
+
+      function handleFor(item) {
+        if (item.includes(-1)) return
+
+        let sum = 0
+
+        for (let i of item) {
+          sum = sum + i
+        }
+
+        return sum / item.length
+      }
+
+      const average1Bim = handleFor(bulletin.map((item) => { return handleSwitch(item.grade1Bim) }))
+      const average2Bim = handleFor(bulletin.map((item) => { return handleSwitch(item.grade2Bim) }))
+      const average3Bim = handleFor(bulletin.map((item) => { return handleSwitch(item.grade3Bim) }))
+      const average4Bim = handleFor(bulletin.map((item) => { return handleSwitch(item.grade4Bim) }))
+
+      const totalAverage = [
+        average1Bim,
+        average2Bim,
+        average3Bim,
+        average4Bim
+      ]
+
+      let response = []
+
+      for (let i of totalAverage) {
+        if (i) response.push(i)
+      }
+
+      return response
+    }
+
+    res.status(200).send({
+      list: bulletin,
+      averageGrade: calcAverageGrade(),
+    })
   } catch (err) {
     logger.error(`Failed to list bulletin by id - Error: ${err.message}`)
 

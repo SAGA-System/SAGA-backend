@@ -1,6 +1,5 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const CryptoJS = require('crypto-js')
 require('dotenv').config()
 
 const AwsS3 = require("../../config/aws")
@@ -611,7 +610,7 @@ exports.login = async (req, res) => {
       })
     }
 
-    const findUser = await models.users.findOne({
+    let findUser = await models.users.findOne({
       where: {
         id: rm,
         idRole: role,
@@ -625,6 +624,34 @@ exports.login = async (req, res) => {
           message: 'Usuário não encontrado, verifique suas credenciais e tente novamente'
         }
       })
+    }
+
+    let roles = await models.roles.findOne({ where: { id: findUser.idRole } })
+    const permissions = await models.permissions.findAll({
+      include: {
+        model: models.permissionsrole,
+        as: 'permissionsroles',
+        where: {
+          idRole: findUser.idRole
+        }
+      }
+    })
+
+    roles = {
+      ...roles["dataValues"], permissions: permissions.map(item => {
+        delete item.dataValues.permissionsroles
+        return item.dataValues
+      })
+    }
+
+    findUser = { ...findUser["dataValues"], roles: roles }
+
+    if([2,3,4].includes(findUser.idRole)) {
+      const teacherData = await models.teachers.findOne({ where: { idUser: findUser.id } })
+      findUser = { ...findUser, teacher: teacherData["dataValues"] }
+    } else if(findUser.idRole === 6) {
+      const studentData = await models.students.findOne({ where: { idUser: findUser.id } })
+      findUser = { ...findUser, student: studentData["dataValues"] }
     }
 
     bcrypt.compare(password, findUser.password, (err, results) => {
@@ -648,7 +675,9 @@ exports.login = async (req, res) => {
           Expires: 60 * 60 * 3
         })
 
-        const user = { ...findUser['dataValues'], avatarUrl: avatarUrl }
+        const user = { ...findUser, avatarUrl: avatarUrl }
+
+        delete user.password;
 
         return res.status(200).send({
           message: 'Autenticado com sucesso',
