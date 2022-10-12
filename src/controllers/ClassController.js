@@ -1550,7 +1550,7 @@ exports.updateFrequency = async (req, res) => {
 
     const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
-    if (!frequency.classTheme || !frequency.bimester || !frequency.classesGiven || !frequency.date || !frequency.description || !frequency.absences) {
+    if (!frequency.classTheme || !frequency.bimester || !frequency.classGiven || !frequency.date || !frequency.description || !frequency.absences) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para realizar a chamada. Verifique as informações enviadas e tente novamente'
@@ -1558,7 +1558,7 @@ exports.updateFrequency = async (req, res) => {
       })
     }
 
-    const teacher = await models.teachers.findOne({ where: { idUser: tokenDecoded.id }})
+    const teacher = await models.teachers.findOne({ where: { idUser: tokenDecoded.id } })
 
     if (!teacher) {
       return res.status(400).send({
@@ -1568,7 +1568,18 @@ exports.updateFrequency = async (req, res) => {
       })
     }
 
-    const findClass = await models.class_.findOne({ where: { id: idClass } })
+    const findClass = await models.class_.findOne({
+      include: {
+        model: models.studentclasses,
+        as: 'studentclasses',
+        where: { idClass: idClass },
+        include: {
+          model: models.frequency,
+          as: 'frequencies',
+        }
+      },
+      where: { id: idClass }
+    })
 
     if (findClass.teachers.filter(item => item.classTheme === frequency.classTheme).length > 1 && !frequency.gang) {
       return res.status(400).send({
@@ -1579,11 +1590,14 @@ exports.updateFrequency = async (req, res) => {
     }
 
     let students = frequency.gang ?
-      await models.studentclasses.findAll({ where: { idClass: idClass, gang: frequency.gang.toUpperCase() } }) :
-      await models.studentclasses.findAll({ where: { idClass: idClass } })
+      findClass.studentclasses.filter(({ gang }) => 
+        gang && gang.toUpperCase() === frequency.gang.toUpperCase()
+      ) : findClass.studentclasses
 
     for (let absentStudent of frequency.absences) {
-      if (!students.some(elem => elem.idStudent === absentStudent.idStudent)) {
+      if (!students.some(elem =>
+        elem['dataValues'].id === absentStudent.idStudentClasses
+      )) {
         return res.status(400).send({
           error: {
             message: 'Existem estudantes informados como ausentes que não fazem parte dessa classe'
@@ -1591,127 +1605,130 @@ exports.updateFrequency = async (req, res) => {
         })
       }
     }
-    
+
     frequency.date = new Date(frequency.date).setHours(0, 0, 0, 0)
     frequency.date = moment(frequency.date).format('YYYY-MM-DD HH:mm:ss')
 
-    if (students.length !== 0) {
-      const classThemeFrequency = students[0].frequency.filter(item =>
-        (item.name === frequency.classTheme)
-      )
-
-      if (classThemeFrequency.length !== 0) {
-        classThemeFrequency[0].classesGiven += frequency.classesGiven
-
-        for (s of students) {
-          const updatedFrequency = s.frequency.map(item => {
-            return item.name === classThemeFrequency[0].name ? (
-              frequency.absences.map(({ idStudent, absence }) =>
-                idStudent === s.idStudent && (
-                  !absence ? {
-                    name: item.name,
-                    classesGiven: classThemeFrequency[0].classesGiven,
-                    absence: item.absence + 0,
-                    totalClasses: item.totalClasses
-                  } : {
-                    name: item.name,
-                    classesGiven: classThemeFrequency[0].classesGiven,
-                    absence: item.absence + absence,
-                    totalClasses: item.totalClasses
-                  }
-                )
-              ).filter(item => item !== false)[0]
-            ) : item
-          })
-
-          await models.studentclasses.update({
-            frequency: updatedFrequency,
-          }, { where: { idStudent: s.idStudent, idClass: idClass } })
-        }
-
-        const absentStudents = []
-        for (abs of frequency.absences) {
-          if (abs.absence && students.filter(({ idStudent }) => idStudent === abs.idStudent).length !== 0) {
-            absentStudents.push({
-              idStudent: abs.idStudent,
-              absence: abs.absence,
-              justification: ""
-            })
-          }
-        }
-
-        const schoolCall = await models.schoolcalls.findOne({
-          where: {
-            idClass: idClass,
-            date: frequency.date,
-            classTheme: frequency.classTheme,
-            gang: frequency.gang || ""
-          }
-        })
-
-        if (schoolCall) {
-          const updatedDescription = schoolCall.description === frequency.description ?
-            schoolCall.description :
-            schoolCall.description + '\n' + frequency.description
-
-          let updatedAbsents = schoolCall.absents.map(({ idStudent, absence }) => {
-            for (item of frequency.absences) {
-              if (idStudent === item.idStudent && absentStudents.filter(abs => idStudent === abs.idStudent).length !== 0) {
-                return {
-                  idStudent: idStudent,
-                  justification: "",
-                  absence: absence + item.absence,
-                }
-              }
-            }
-          }).filter(item => !!item)
-
-          for (student of frequency.absences) {
-            if (
-              students.filter(item => student.idStudent === item.idStudent && item.gang === frequency.gang).length !== 0 &&
-              updatedAbsents.filter(({ idStudent }) => idStudent === student.idStudent).length === 0 &&
-              student.absence
-            ) {
-              updatedAbsents.push({
-                idStudent: student.idStudent,
-                absence: student.absence,
-                justification: ""
-              })
-            }
-          }
-
-          await models.schoolcalls.update({
-            description: updatedDescription,
-            absents: updatedAbsents
-          }, { where: { id: schoolCall.id } })
-        } else {
-          await models.schoolcalls.create({
-            idTeacher: teacher.id,
-            idClass: idClass,
-            classTheme: frequency.classTheme,
-            gang: frequency.gang || "",
-            bimester: frequency.bimester,
-            date: frequency.date,
-            description: frequency.description,
-            absents: absentStudents
-          })
-        }
-
-        res.status(200).send({ message: "Chamada realizada!" })
-      } else {
-        res.status(409).send({
-          error: {
-            message: 'Essa matéria não existe para essa turma',
-          }
-        })
-      }
-    } else {
-      res.status(404).send({
+    if (students.length === 0) {
+      return res.status(404).send({
         error: {
           message: 'Nenhum aluno foi encontrado. Não foi possível concluir a chamada',
         }
       })
     }
+    const classThemeFrequency = students[0].frequencies.filter(item =>
+      convertToSlug(item.classTheme) === convertToSlug(frequency.classTheme)
+    )[0]
+
+    if (!classThemeFrequency) {
+      return res.status(409).send({
+        error: {
+          message: 'Essa matéria não existe para essa turma',
+        }
+      })
+    }
+
+    classThemeFrequency.classGiven += frequency.classGiven
+
+    // mapping class students
+    for (s of students) {
+      const updatedFrequency = s.frequencies.map(item => {
+        // searching for the matter that the call was made
+        return item.classTheme === classThemeFrequency.classTheme ? (
+          // mapping absences students
+          frequency.absences.map((elem) => {
+            // checking if the student is absent or not to update their frequency information
+            return elem.idStudentClasses === s.id && {
+              ...item['dataValues'],
+              classGiven: classThemeFrequency.classGiven,
+              absence: item.absence + elem.absence,
+              totalClasses: item.totalClasses
+            }
+            // picking up only the missing students and returning other information if the student has not been absent
+          }).filter(filterItem => filterItem.absence && filterItem.absence !== item.absence)[0] ?? {
+            ...item['dataValues'],
+            classGiven: classThemeFrequency.classGiven,
+          }
+        ) : item['dataValues']
+      })
+
+      // update data in frequency table
+      for (let data of updatedFrequency) {
+        if (convertToSlug(data.classTheme) === convertToSlug(classThemeFrequency.classTheme)) {
+          await models.frequency.update(data, { where: { id: data.id } })
+        }
+      }
+    }
+
+    const absentStudents = []
+    for (abs of frequency.absences) {
+      if (abs.absence && students.filter(({ id }) => id === abs.idStudentClasses).length !== 0) {
+        absentStudents.push({
+          idStudentClasses: abs.idStudentClasses,
+          absence: abs.absence,
+          justification: ""
+        })
+      }
+    }
+
+    const schoolCall = await models.schoolcalls.findOne({
+      where: {
+        idClass: idClass,
+        date: frequency.date,
+        classTheme: frequency.classTheme,
+        gang: frequency.gang || ""
+      }
+    })
+
+    if (schoolCall) {
+      const updatedDescription = schoolCall.description === frequency.description ?
+        schoolCall.description :
+        schoolCall.description + '\n' + frequency.description
+
+      let updatedAbsents = schoolCall.absents.map(({ idStudentClasses, absence }) => {
+        for (item of frequency.absences) {
+          if (idStudentClasses === item.idStudentClasses && absentStudents.filter(abs => idStudentClasses === abs.idStudentClasses).length !== 0) {
+            return {
+              idStudentClasses: idStudentClasses,
+              justification: "",
+              absence: absence + item.absence,
+            }
+          }
+        }
+      }).filter(item => !!item)
+
+      for (let student of frequency.absences) {
+        if (
+          students.filter(item => student.idStudentClasses === item.id).length !== 0 &&
+          updatedAbsents.filter(({ idStudentClasses }) => idStudentClasses === student.idStudentClasses).length === 0 &&
+          student.absence
+        ) {
+          updatedAbsents.push({
+            idStudentClasses: student.idStudentClasses,
+            absence: student.absence,
+            justification: ""
+          })
+        }
+      }
+
+      await models.schoolcalls.update({
+        description: updatedDescription,
+        absents: updatedAbsents
+      }, { where: { id: schoolCall.id } })
+    } else {
+      await models.schoolcalls.create({
+        idTeacher: teacher.id,
+        idClass: idClass,
+        classTheme: frequency.classTheme,
+        gang: frequency.gang || "",
+        bimester: frequency.bimester,
+        date: frequency.date,
+        description: frequency.description,
+        absents: absentStudents
+      })
+    }
+
+    return res.status(200).send({ message: "Chamada realizada!" })
   } catch (err) {
     logger.error(`Failed to update frequency - Error: ${err.message}`)
 

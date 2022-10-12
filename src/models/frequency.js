@@ -27,7 +27,7 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    absenceGiven: {
+    absence: {
       type: DataTypes.INTEGER,
       allowNull: false
     }
