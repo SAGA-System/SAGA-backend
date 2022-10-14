@@ -538,6 +538,7 @@ exports.destroy = async (req, res) => {
 
     const findUser = await models.users.findOne({ where: { id: id } })
 
+    // TODO: revisar esse fluxo
     if (findUser) {
       if (([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
         const roleId = findUser.roleId

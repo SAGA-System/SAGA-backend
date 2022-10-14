@@ -26,10 +26,6 @@ module.exports = function(sequelize, DataTypes) {
     gang: {
       type: DataTypes.STRING(255),
       allowNull: false
-    },
-    frequency: {
-      type: DataTypes.JSON,
-      allowNull: false
     }
   }, {
     sequelize,

@@ -37,7 +37,7 @@ exports.index = async (req, res) => {
 
     delete students.dataValues.idUser_user
 
-    res.status(200).send(students)
+    return res.status(200).send(students)
   } catch (err) {
     logger.error(`Failed to list students - Error: ${err.message}`)
 
@@ -55,7 +55,13 @@ exports.show = async (req, res) => {
 
     const id = req.params.id
 
-    const students = await models.students.findOne({ where: { id: id } })
+    const students = await models.students.findOne({
+      include: {
+        model: models.studentclasses,
+        as: 'studentclasses',
+      },
+      where: { id: id }
+    })
 
     if (!students) {
       return res.status(404).send({
@@ -65,7 +71,7 @@ exports.show = async (req, res) => {
       })
     }
 
-    res.status(200).send(students)
+    return res.status(200).send(students)
   } catch (err) {
     logger.error(`Failed to list student by id - Error: ${err.message}`)
 
@@ -101,11 +107,11 @@ exports.store = async (req, res) => {
 
     const findClass = await models.class_.findOne({ where: { id: idClass } })
 
-    const modifyCourses = findClass.classTheme.map(({ name, totalClasses }) => {
+    const modifyCourses = findClass.classTheme.map(({ name: classTheme, totalClasses }) => {
       return {
-        name,
+        classTheme,
         totalClasses,
-        classesGiven: 0,
+        classGiven: 0,
         absence: 0
       }
     })
@@ -129,7 +135,14 @@ exports.store = async (req, res) => {
         frequency: findClass.classTheme
       })
 
-      res.status(201).send({
+      for (let classTheme of findClass.classTheme) {
+        await models.frequency.create({
+          idStudent: newStudent.id,
+          ...classTheme
+        })
+      }
+
+      return res.status(201).send({
         message: 'Estudante criado com sucesso',
         newStudent
       })
@@ -168,9 +181,9 @@ exports.update = async (req, res) => {
         situation: situation,
       }, { where: { id: id } })
 
-      res.status(200).send(await models.students.findOne({ where: { id: id } }))
+      return res.status(200).send(await models.students.findOne({ where: { id: id } }))
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhuma estudante foi encontrado. Não foi possível concluir a atualização',
         }
@@ -231,16 +244,16 @@ exports.justifyAbsences = async (req, res) => {
           }, { where: { id: a.id } })
         }
 
-        res.status(200).send({ message: 'Faltas justificadas com sucesso!' })
+        return res.status(200).send({ message: 'Faltas justificadas com sucesso!' })
       } else {
-        res.status(404).send({
+        return res.status(404).send({
           error: {
             message: 'Nenhuma falta foi encontrada para ser justificada.',
           }
         })
       }
     } else {
-      res.status(404).send({
+      return res.status(404).send({
         error: {
           message: 'Nenhum estudante foi encontrado. Não foi possível concluir a atualização',
         }

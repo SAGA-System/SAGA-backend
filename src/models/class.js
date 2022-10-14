@@ -27,18 +27,6 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    teachers: {
-      type: DataTypes.JSON,
-      allowNull: false
-    },
-    students: {
-      type: DataTypes.JSON,
-      allowNull: false
-    },
-    lessons: {
-      type: DataTypes.JSON,
-      allowNull: false
-    },
     block: {
       type: DataTypes.STRING(10),
       allowNull: false

@@ -9,17 +9,90 @@ const initModels = require('../models/init-models')
 const db = require('../models/db')
 const models = initModels(db)
 
+const defaultIncludes = [
+  {
+    model: models.studentclasses,
+    as: 'studentclasses',
+    include: {
+      model: models.students,
+      attributes: ['idUser'],
+      as: 'idStudent_student',
+      include: {
+        model: models.users,
+        as: 'idUser_user',
+        attributes: ['name'],
+      }
+    }
+  }, {
+    model: models.teacherClasses,
+    as: 'teacherClasses',
+    include: {
+      model: models.teachers,
+      attributes: ['idUser'],
+      as: 'idTeacher_teacher',
+      include: {
+        model: models.users,
+        as: 'idUser_user',
+        attributes: ['name'],
+      }
+    }
+  }, {
+    model: models.classLessons,
+    as: 'classLessons'
+  }
+]
+
+function defaultClassLessons(lessonsPerDay) {
+  let lessons = {
+    monday: [],
+    tuesday: [],
+    wednesday: [],
+    thursday: [],
+    friday: [],
+  }
+
+  for (let i = 0; i < lessonsPerDay; i++) {
+    lessons.monday[i] = {
+      lesson: i + 1,
+      classTheme: '',
+      gang: ''
+    }
+    lessons.tuesday[i] = {
+      lesson: i + 1,
+      classTheme: '',
+      gang: ''
+    }
+    lessons.wednesday[i] = {
+      lesson: i + 1,
+      classTheme: '',
+      gang: ''
+    }
+    lessons.thursday[i] = {
+      lesson: i + 1,
+      classTheme: '',
+      gang: ''
+    }
+    lessons.friday[i] = {
+      lesson: i + 1,
+      classTheme: '',
+      gang: ''
+    }
+  }
+
+  return lessons;
+}
+
 exports.index = async (req, res) => {
   try {
     logger.info(`ClassController/index - list all classes`)
-    //await models.class_.sync({alter: true})
 
-    const token = req.headers.authorization.slice(7)
-    const tokenDecoded = jwt.decode(token)
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
-    const classes = await models.class_.findAll({ where: { idInstitution: findUser.idInstitution } })
+    const classes = await models.class_.findAll({
+      where: { idInstitution: findUser.idInstitution }
+    })
 
     if (classes.length === 0) {
       return res.status(404).send({
@@ -47,7 +120,10 @@ exports.show = async (req, res) => {
 
     const id = req.params.id
 
-    const class_ = await models.class_.findOne({ where: { id: id } })
+    const class_ = await models.class_.findOne({
+      include: defaultIncludes,
+      where: { id: id }
+    })
 
     if (!class_) {
       return res.status(404).send({
@@ -81,8 +157,7 @@ exports.store = async (req, res) => {
       classNumber,
     } = req.body
 
-    const token = req.headers.authorization.slice(7)
-    const tokenDecoded = jwt.decode(token)
+    const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
     const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
@@ -104,83 +179,56 @@ exports.store = async (req, res) => {
       }
     })
 
-    if (findClasses.length === 0) {
-      const courseData = findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(course))
-
-      if (period.toLowerCase() === courseData[0].period.toLowerCase()) {
-        let lessons = {
-          Monday: [],
-          Tuesday: [],
-          Wednesday: [],
-          Thursday: [],
-          Friday: [],
-          Saturday: [],
-        }
-
-        for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
-          lessons.Monday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Tuesday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Wednesday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Thursday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Friday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Saturday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-        }
-
-        const newClass = await models.class_.create({
-          idInstitution: findInstitution.id,
-          period: period,
-          course: course,
-          schoolYear: schoolYear,
-          teachers: [],
-          students: [],
-          lessons: lessons,
-          block: block,
-          classNumber: classNumber,
-          classTheme: courseData[0].classTheme[schoolYear - 1]
-        })
-
-        return res.status(201).send({
-          message: 'Classe criada com sucesso',
-          newClass
-        })
-      } else {
-        return res.status(409).send({
-          error: {
-            message: 'Não existe modalidade do curso no turno solicitado',
-          }
-        })
-      }
-    } else {
+    if (findClasses.length !== 0) {
       return res.status(409).send({
         error: {
           message: 'Já existe uma classe no local informado',
         }
       })
     }
+
+    const courseData = findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(course))
+
+    if (courseData.length === 0) {
+      return res.status(400).send({
+        error: {
+          message: 'O curso informado não existe',
+        }
+      })
+    }
+
+    if (convertToSlug(period.toLowerCase()) !== convertToSlug(courseData[0].period.toLowerCase())) {
+      return res.status(409).send({
+        error: {
+          message: 'Não existe modalidade do curso no turno solicitado',
+        }
+      })
+    }
+
+    let lessons = defaultClassLessons(courseData[0].lessonsPerDay)
+
+    const newClass = await models.class_.create({
+      idInstitution: findInstitution.id,
+      period: period,
+      course: course,
+      schoolYear: schoolYear,
+      teachers: [], // TODO: REMOVER
+      students: [], // TODO: REMOVER
+      lessons: lessons, // TODO: REMOVER 
+      block: block,
+      classNumber: classNumber,
+      classTheme: courseData[0].classTheme[schoolYear - 1]
+    })
+
+    await models.classLessons.create({
+      idClass: newClass.id,
+      ...lessons
+    })
+
+    return res.status(201).send({
+      message: 'Classe criada com sucesso',
+      newClass
+    })
   } catch (err) {
     logger.error(`Failed to create class - Error: ${err.message}`)
 
@@ -212,173 +260,114 @@ exports.update = async (req, res) => {
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
     const findInstitution = await models.institution.findOne({ where: { id: findUser.idInstitution } })
 
-    const findClass = await models.class_.findOne({ where: { id: id } })
-    const findAllTeachers = await models.teachers.findAll({
-      include: {
-        model: models.users,
-        as: 'idUser_user',
-        where: {
-          idInstitution: findUser.idInstitution
-        }
-      }
+    const findClass = await models.class_.findOne({
+      include: defaultIncludes,
+      where: { id: id }
     })
 
-    if (findClass) {
-      const courseData = course ?
-        findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(course)) :
-        findInstitution.courses.filter((item) => convertToSlug(item.name) === convertToSlug(findClass.course))
-
-      if (courseData.length === 0) {
-        return res.status(400).send({
-          error: {
-            message: 'O curso informado não existe',
-          }
-        })
-      }
-
-      if (period ?
-        convertToSlug(period) === convertToSlug(courseData[0].period) :
-        convertToSlug(findClass.period) === convertToSlug(courseData[0].period)
-      ) {
-        let lessons = {
-          Monday: [],
-          Tuesday: [],
-          Wednesday: [],
-          Thursday: [],
-          Friday: [],
-          Saturday: [],
-        }
-
-        for (let i = 0; i < courseData[0].lessonsPerDay; i++) {
-          lessons.Monday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Tuesday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Wednesday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Thursday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Friday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-          lessons.Saturday[i] = {
-            lesson: i + 1,
-            teacher: {},
-            classTheme: ''
-          }
-        }
-
-        let teacherForDeleteLessons = []
-
-        for (teacher of findClass.teachers) {
-          if (!teacherForDeleteLessons.some(({ id }) => teacher.id === id)) {
-            teacherForDeleteLessons.push({ id: teacher.id })
-          }
-        }
-
-        let lessonsForDelete = []
-
-        if (teacherForDeleteLessons.length !== 0) {
-          for (let teacher of teacherForDeleteLessons) {
-            for (let day of Object.keys(findClass.lessons)) {
-              for (item of findClass.lessons[day]) {
-                if (Array.isArray(item)) {
-                  for (let lessonData of item) {
-                    if (lessonData.teacher.id === teacher.id) {
-                      lessonsForDelete.push({
-                        day: day,
-                        period: findClass.period,
-                        lesson: lessonData.lesson,
-                        idTeacher: teacher.id
-                      })
-                    }
-                  }
-                } else {
-                  if (item.teacher.id === teacher.id) {
-                    lessonsForDelete.push({
-                      day: day,
-                      period: findClass.period,
-                      lesson: item.lesson,
-                      idTeacher: teacher.id
-                    })
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        let errors = []
-
-        for (let lesson of lessonsForDelete) {
-          await api.delete(`/teacher/deleteLessons/${lesson.idTeacher}?day=${lesson.day
-            }&period=${lesson.period
-            }&lesson=${lesson.lesson}`, { headers: { authorization: token } }
-          ).catch(err => {
-            logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
-
-            errors.push(err?.response?.data?.error?.message || err.message)
-          });
-        }
-
-        if (errors.length > 0) {
-          for (let { id } of teacherForDeleteLessons) {
-            for (let teacher of findAllTeachers) {
-              if (id === teacher.id) {
-                await models.teachers.update({
-                  lessons: teacher.lessons
-                }, { where: { id: id } })
-              }
-            }
-          }
-
-          return res.status(500).send({
-            error: {
-              message: 'Ocorreu um erro interno do servidor',
-              errorsRequest: errors
-            }
-          })
-        }
-
-        await models.class_.update({
-          period: period,
-          course: course,
-          schoolYear: schoolYear,
-          block: block,
-          classNumber: classNumber,
-          lessons: lessons,
-          classTheme: courseData[0].classTheme[schoolYear - 1]
-        }, { where: { id: id } })
-
-        return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
-      } else {
-        return res.status(409).send({
-          error: {
-            message: 'Não existe modalidade do curso no turno solicitado',
-          }
-        })
-      }
-    } else {
+    if (!findClass) {
       return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível concluir a atualização',
         }
       })
     }
+
+    // for get course details if has updated
+    const courseData = course ? findInstitution.courses.filter((item) =>
+      convertToSlug(item.name) === convertToSlug(course)
+    ) : []
+
+    if (course && courseData.length === 0) {
+      return res.status(400).send({
+        error: {
+          message: 'O curso informado não existe',
+        }
+      })
+    }
+
+    if (period &&
+      convertToSlug(period.toLowerCase()) !== convertToSlug(courseData[0].period.toLowerCase())
+    ) {
+      return res.status(409).send({
+        error: {
+          message: 'Não existe modalidade do curso no turno solicitado',
+        }
+      })
+    }
+
+    // to catch the teachers who teach this class without repeating them
+    let teacherForDeleteLessons = []
+
+    for (teacher of findClass.teacherClasses) {
+      if (!teacherForDeleteLessons.some(({ id }) => teacher.id === id)) {
+        teacherForDeleteLessons.push({ id: teacher.id })
+      }
+    }
+
+    let errors = []
+
+    // logic to delete the lessons that teachers have in that class
+    if (teacherForDeleteLessons.length !== 0) {
+      for (let teacher of teacherForDeleteLessons) {
+        // get teacherLessons
+        const teacherLessons = await models.teacherLessons.findOne({ where: { idTeacher: teacher.id } })
+
+        function lessonPerDayUpdated(day) {
+          return teacherLessons[day].filter(({ classBlock, classNumber }) =>
+            classBlock !== (block || findClass.block) &&
+            classNumber !== (classNumber || findClass.classNumber)
+          )
+        }
+
+        // updated teacherLessons
+        await api.put(`/teacher/updateLessons/${teacher.id}`, {
+          monday: lessonPerDayUpdated('monday'),
+          tuesday: lessonPerDayUpdated('tuesday'),
+          wednesday: lessonPerDayUpdated('wednesday'),
+          thursday: lessonPerDayUpdated('thursday'),
+          friday: lessonPerDayUpdated('friday'),
+        }, { headers: { authorization: token } }).catch(async (err) => {
+          logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+          // if has error, return to the old lessons
+          await models.teacherLessons.update({
+            monday: teacherLessons.monday,
+            tuesday: teacherLessons.tuesday,
+            wednesday: teacherLessons.wednesday,
+            thursday: teacherLessons.thursday,
+            friday: teacherLessons.friday,
+          }, { where: { idTeacher: teacher.id } })
+
+          errors.push(err?.response?.data?.error?.message || err.message)
+        });
+      }
+    }
+
+    // if teacherLessons update had one or more errors, return an error to the client
+    if (errors.length > 0) {
+      return res.status(500).send({
+        error: {
+          message: 'Ocorreu um erro interno do servidor',
+          errorsRequest: errors
+        }
+      })
+    }
+
+    await models.class_.update({
+      period: period,
+      course: course,
+      schoolYear: schoolYear,
+      block: block,
+      classNumber: classNumber,
+      classTheme: courseData[0].classTheme[schoolYear - 1]
+    }, { where: { id: id } })
+
+    let lessons = defaultClassLessons(courseData[0].lessonsPerDay)
+
+    await models.classLessons.update(lessons, { where: { idClass: id } })
+
+    return res.status(200).send(await models.class_.findOne({ where: { id: id } }))
   } catch (err) {
     logger.error(`Failed to update class by id - Error: ${err.message}`)
 
@@ -396,21 +385,83 @@ exports.destroy = async (req, res) => {
 
     const id = req.params.id
 
-    const findClass = await models.class_.findAll({ where: { id: id } })
+    const findClass = await models.class_.findOne({ 
+      include: defaultIncludes,
+      where: { id: id } 
+    })
 
-    if (findClass.length !== 0) {
-      await models.class_.destroy({ where: { id: id } })
-
-      return res.status(200).send({
-        message: 'Classe deletada com sucesso'
-      })
-    } else {
+    if (!findClass) { 
       return res.status(404).send({
         error: {
           message: 'Classe não encontrada ou já deletada',
         }
       })
     }
+
+      // to catch the teachers who teach this class without repeating them
+    let teacherForDeleteLessons = []
+
+    for (teacher of findClass.teacherClasses) {
+      if (!teacherForDeleteLessons.some(({ id }) => teacher.id === id)) {
+        teacherForDeleteLessons.push({ id: teacher.id })
+      }
+    }
+
+    let errors = []
+
+    // logic to delete the lessons that teachers have in that class
+    if (teacherForDeleteLessons.length !== 0) {
+      for (let teacher of teacherForDeleteLessons) {
+        // get teacherLessons
+        const teacherLessons = await models.teacherLessons.findOne({ where: { idTeacher: teacher.id } })
+
+        function lessonPerDayUpdated(day) {
+          return teacherLessons[day].filter(({ classBlock, classNumber }) =>
+            classBlock !== (block || findClass.block) &&
+            classNumber !== (classNumber || findClass.classNumber)
+          )
+        }
+
+        // updated teacherLessons
+        await api.put(`/teacher/updateLessons/${teacher.id}`, {
+          monday: lessonPerDayUpdated('monday'),
+          tuesday: lessonPerDayUpdated('tuesday'),
+          wednesday: lessonPerDayUpdated('wednesday'),
+          thursday: lessonPerDayUpdated('thursday'),
+          friday: lessonPerDayUpdated('friday'),
+        }, { headers: { authorization: token } }).catch(async (err) => {
+          logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+          // if has error, return to the old lessons
+          await models.teacherLessons.update({
+            monday: teacherLessons.monday,
+            tuesday: teacherLessons.tuesday,
+            wednesday: teacherLessons.wednesday,
+            thursday: teacherLessons.thursday,
+            friday: teacherLessons.friday,
+          }, { where: { idTeacher: teacher.id } })
+
+          errors.push(err?.response?.data?.error?.message || err.message)
+        });
+      }
+    }
+
+    // if teacherLessons update had one or more errors, return an error to the client
+    if (errors.length > 0) {
+      return res.status(500).send({
+        error: {
+          message: 'Ocorreu um erro interno do servidor',
+          errorsRequest: errors
+        }
+      })
+    }
+
+      await models.class_.destroy({ where: { id: id } })
+
+      return res.status(200).send({
+        message: 'Classe deletada com sucesso'
+      })
+
   } catch (err) {
     logger.error(`Failed to delete class by id - Error: ${err.message}`)
 
@@ -1590,7 +1641,7 @@ exports.updateFrequency = async (req, res) => {
     }
 
     let students = frequency.gang ?
-      findClass.studentclasses.filter(({ gang }) => 
+      findClass.studentclasses.filter(({ gang }) =>
         gang && gang.toUpperCase() === frequency.gang.toUpperCase()
       ) : findClass.studentclasses
 

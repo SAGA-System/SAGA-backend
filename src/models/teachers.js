@@ -18,10 +18,6 @@ module.exports = function(sequelize, DataTypes) {
     speciality: {
       type: DataTypes.STRING(255),
       allowNull: false
-    },
-    lessons: {
-      type: DataTypes.JSON,
-      allowNull: false
     }
   }, {
     sequelize,

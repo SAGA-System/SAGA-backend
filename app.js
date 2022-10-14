@@ -14,6 +14,7 @@ const rolesRoutes = require('./src/routes/roles')
 const evaluationRoutes = require('./src/routes/evaluation')
 const bulletinRoutes = require('./src/routes/bulletin')
 const schoolCallRoutes = require('./src/routes/schoolCall')
+const frequencyRoutes = require('./src/routes/frequency')
 
 app.use(function (req, res, next) {
   // Website you wish to allow to connect
@@ -47,6 +48,7 @@ app.use('/api/roles', rolesRoutes)
 app.use('/api/evaluation', evaluationRoutes)
 app.use('/api/bulletin', bulletinRoutes)
 app.use('/api/schoolcalls', schoolCallRoutes)
+app.use('/api/frequency', frequencyRoutes)
 
 app.use((req, res, next) => {
   const err = new Error('Rota não encontrada')
