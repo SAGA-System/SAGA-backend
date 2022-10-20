@@ -128,16 +128,15 @@ exports.store = async (req, res) => {
         situation: situation,
       })
 
-      await models.studentclasses.create({
+      const newStudentClasses = await models.studentclasses.create({
         idStudent: newStudent.id,
         idClass: idClass,
         gang: '',
-        frequency: findClass.classTheme
       })
 
       for (let classTheme of findClass.classTheme) {
         await models.frequency.create({
-          idStudent: newStudent.id,
+          idStudentClasses: newStudentClasses.id,
           ...classTheme
         })
       }

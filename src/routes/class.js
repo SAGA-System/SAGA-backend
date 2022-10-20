@@ -11,7 +11,7 @@ router.delete('/:id', login, ClassController.destroy)
 
 //update students column
 router.post('/addStudents/:idClass', login, ClassController.addStudents)
-router.put('/updateStudent/:idClass/:idUser', login, ClassController.updateStudent)
+// router.put('/updateStudent/:idClass/:idUser', login, ClassController.updateStudent)
 router.delete('/deleteStudent/:idClass/:idUser', login, ClassController.deleteStudent)
 
 //update teachers column
