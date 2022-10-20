@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const schoolCallController = require('../controllers/schoolCallController')
+const SchoolCallController = require('../controllers/SchoolCallController')
 const login = require('../middleware/login')
 
-router.get('/', login, schoolCallController.index)
-router.get('/:id', login, schoolCallController.show)
-router.put('/:id', login, schoolCallController.update)
+router.get('/', login, SchoolCallController.index)
+router.get('/:id', login, SchoolCallController.show)
+router.put('/:id', login, SchoolCallController.update)
 
 module.exports = router
