@@ -1,5 +1,4 @@
 var DataTypes = require("sequelize").DataTypes;
-var _SequelizeMeta = require("./SequelizeMeta");
 var _bulletin = require("./bulletin");
 var _class_ = require("./class");
 var _classLessons = require("./classLessons");
