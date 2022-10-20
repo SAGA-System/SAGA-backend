@@ -18,7 +18,6 @@ var _teachers = require("./teachers");
 var _users = require("./users");
 
 function initModels(sequelize) {
-  var SequelizeMeta = _SequelizeMeta(sequelize, DataTypes);
   var bulletin = _bulletin(sequelize, DataTypes);
   var class_ = _class_(sequelize, DataTypes);
   var classLessons = _classLessons(sequelize, DataTypes);
@@ -71,7 +70,6 @@ function initModels(sequelize) {
   users.hasMany(teachers, { as: "teachers", foreignKey: "idUser" });
 
   return {
-    SequelizeMeta,
     bulletin,
     class_,
     classLessons,
