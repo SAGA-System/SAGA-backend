@@ -9,6 +9,9 @@
   },
   "author": "Carlos Eduardo Zulian",
   "license": "ISC",
+  "engines": {
+    "node": "16.14.0"
+  },
   "dependencies": {
     "aws-sdk": "^2.1218.0",
     "axios": "^0.26.1",
