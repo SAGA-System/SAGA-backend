@@ -17,8 +17,12 @@ const schoolCallRoutes = require('./src/routes/schoolCall')
 const frequencyRoutes = require('./src/routes/frequency')
 
 app.use(function (req, res, next) {
-  // Website you wish to allow to connect
-  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
+  if (process.env.POSSIBLE_ROUTES && process.env.POSSIBLE_ROUTES.includes(req.headers.origin)) {
+    // Website you wish to allow to connect
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
+  }
 
   // Request methods you wish to allow
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
