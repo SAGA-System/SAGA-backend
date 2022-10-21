@@ -6,5 +6,18 @@ const app = require('./app')
 
 const server = http.createServer(app);
 
-console.log(`\nlistening on http://localhost:${port}/api\n`);
+let url
+
+switch (process.env.NODE_ENV) {
+  case 'development': {
+    url = `http://localhost:${port}/api`
+    break;
+  }
+  case 'staging': {
+    url = "https://saga-backend.herokuapp.com/api"
+    break;
+  }
+}
+
+console.log(`\nlistening on ${url}\n`);
 server.listen(port);
