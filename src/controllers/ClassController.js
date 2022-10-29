@@ -7,6 +7,7 @@ const api = require('../../config/api')
 
 const initModels = require('../models/init-models')
 const db = require('../models/db')
+const awsS3 = require('../../config/aws')
 const models = initModels(db)
 
 const defaultIncludes = [
@@ -119,11 +120,37 @@ exports.show = async (req, res) => {
     logger.info(`ClassController/show - list class by id`)
 
     const id = req.params.id
+    const { gang } = req.query
 
-    const class_ = await models.class_.findOne({
+    let options = {
       include: defaultIncludes,
       where: { id: id }
-    })
+    }
+
+    if (gang) {
+      options = {
+        ...options,
+        include: [
+          {
+            ...defaultIncludes[0],
+            include: {
+              ...defaultIncludes[0].include,
+              include: {
+                ...defaultIncludes[0].include.include,
+                attributes: ['name', 'avatarKey'],
+              }
+            },
+            where: {
+              gang: gang
+            }
+          },
+          defaultIncludes[1],
+          defaultIncludes[2],
+        ]
+      }
+    }
+
+    let class_ = await models.class_.findOne(options)
 
     if (!class_) {
       return res.status(404).send({
@@ -131,6 +158,30 @@ exports.show = async (req, res) => {
           message: 'Nenhuma classe foi encontrada. Verifique as informações e tente novamente'
         }
       })
+    }
+
+    if (gang) {
+      class_ = {
+        ...class_['dataValues'],
+        studentclasses: class_.studentclasses.map((item) => {
+          const avatarUrl = awsS3.getSignedUrl("getObject", {
+            Bucket: process.env.AWS_BUCKET_AVATAR,
+            Key: item.idStudent_student.idUser_user.avatarKey,
+            Expires: 60 * 60 * 3
+          })
+
+          return {
+            ...item['dataValues'],
+            idStudent_student: {
+              ...item.idStudent_student['dataValues'],
+              idUser_user: {
+                ...item.idStudent_student.idUser_user['dataValues'],
+                avatarUrl: avatarUrl
+              }
+            }
+          }
+        })
+      }
     }
 
     return res.status(200).send(class_)
@@ -1016,81 +1067,81 @@ exports.deleteTeacher = async (req, res) => {
       })
     }
 
-      const teacherForDelete = findClass.teacherClasses.filter((item) => item.idUser === Number(idUser))
+    const teacherForDelete = findClass.teacherClasses.filter((item) => item.idUser === Number(idUser))
 
-      let lessonsForDelete = []
+    let lessonsForDelete = []
 
-      let lessonsUpdated = findClass.lessons
+    let lessonsUpdated = findClass.lessons
 
-      if (teacherForDelete.length !== 0) {
-        for (let day of Object.keys(findClass.lessons)) {
-          lessonsUpdated[day] = findClass.lessons[day].map(item => {
-            if (Array.isArray(item)) {
+    if (teacherForDelete.length !== 0) {
+      for (let day of Object.keys(findClass.lessons)) {
+        lessonsUpdated[day] = findClass.lessons[day].map(item => {
+          if (Array.isArray(item)) {
+            lessonsForDelete.push({
+              day: day,
+              period: findClass.period,
+              lesson: item.filter(secondItem => secondItem.teacher.idUser === Number(idUser))[0].lesson
+            })
+
+            return item.filter(secondItem => secondItem.teacher.idUser !== Number(idUser))
+          } else {
+            if (item.teacher.idUser === Number(idUser)) {
               lessonsForDelete.push({
                 day: day,
                 period: findClass.period,
-                lesson: item.filter(secondItem => secondItem.teacher.idUser === Number(idUser))[0].lesson
+                lesson: item.lesson
               })
-
-              return item.filter(secondItem => secondItem.teacher.idUser !== Number(idUser))
-            } else {
-              if (item.teacher.idUser === Number(idUser)) {
-                lessonsForDelete.push({
-                  day: day,
-                  period: findClass.period,
-                  lesson: item.lesson
-                })
-              }
-
-              return item.teacher.idUser === Number(idUser) ? {
-                lesson: item.lesson,
-                teacher: {},
-                classTheme: ''
-              } : item
             }
-          })
-        }
 
-        let errors = []
-
-        for (lesson of lessonsForDelete) {
-          await api.delete(`/teacher/deleteLessons/${teacherForDelete[0].id}
-            ?day=${lesson.day
-            }&period=${lesson.period
-            }&lesson=${lesson.lesson}`, { headers: { authorization: token } }).catch(err => {
-              logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
-
-              errors.push(err?.response?.data?.error?.message || err.message)
-            });
-        }
-
-        if (errors.length > 0) {
-          await models.teachers.update({
-            lessons: findTeacher.lessons
-          }, { where: { idUser: idUser } })
-
-          return res.status(500).send({
-            error: {
-              message: 'Ocorreu um erro interno do servidor'
-            }
-          })
-        }
-
-        const updatedTeachers = findClass.teachers.filter((item) => item.idUser !== Number(idUser))
-
-        await models.class_.update({
-          teachers: updatedTeachers,
-          lessons: lessonsUpdated
-        }, { where: { id: idClass } })
-
-        return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
-      } else {
-        return res.status(404).send({
-          error: {
-            message: 'Não existe um professor nessa classe com as credenciais informadas',
+            return item.teacher.idUser === Number(idUser) ? {
+              lesson: item.lesson,
+              teacher: {},
+              classTheme: ''
+            } : item
           }
         })
       }
+
+      let errors = []
+
+      for (lesson of lessonsForDelete) {
+        await api.delete(`/teacher/deleteLessons/${teacherForDelete[0].id}
+            ?day=${lesson.day
+          }&period=${lesson.period
+          }&lesson=${lesson.lesson}`, { headers: { authorization: token } }).catch(err => {
+            logger.error(`Failed to delete lessons in teacher - Error: ${err?.response?.data?.error?.message || err.message}`)
+
+            errors.push(err?.response?.data?.error?.message || err.message)
+          });
+      }
+
+      if (errors.length > 0) {
+        await models.teachers.update({
+          lessons: findTeacher.lessons
+        }, { where: { idUser: idUser } })
+
+        return res.status(500).send({
+          error: {
+            message: 'Ocorreu um erro interno do servidor'
+          }
+        })
+      }
+
+      const updatedTeachers = findClass.teachers.filter((item) => item.idUser !== Number(idUser))
+
+      await models.class_.update({
+        teachers: updatedTeachers,
+        lessons: lessonsUpdated
+      }, { where: { id: idClass } })
+
+      return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
+    } else {
+      return res.status(404).send({
+        error: {
+          message: 'Não existe um professor nessa classe com as credenciais informadas',
+        }
+      })
+    }
   } catch (err) {
     logger.error(`Failed to delete class by id - Error: ${err.message}`)
 
@@ -1589,13 +1640,14 @@ exports.updateFrequency = async (req, res) => {
       where: { id: idClass }
     })
 
-    if (findClass.teachers.filter(item => item.classTheme === frequency.classTheme).length > 1 && !frequency.gang) {
-      return res.status(400).send({
-        error: {
-          message: 'A matéria informada é separada em turmas, mas a turma onde a chamada foi realizada não foi informada'
-        }
-      })
-    }
+    // TODO: revisar necessidade
+    // if (findClass.teachers.filter(item => item.classTheme === frequency.classTheme).length > 1 && !frequency.gang) {
+    //   return res.status(400).send({
+    //     error: {
+    //       message: 'A matéria informada é separada em turmas, mas a turma onde a chamada foi realizada não foi informada'
+    //     }
+    //   })
+    // }
 
     let students = frequency.gang ?
       findClass.studentclasses.filter(({ gang }) =>
@@ -1738,6 +1790,7 @@ exports.updateFrequency = async (req, res) => {
 
     return res.status(200).send({ message: "Chamada realizada!" })
   } catch (err) {
+    console.log(err)
     logger.error(`Failed to update frequency - Error: ${err.message}`)
 
     return res.status(500).send({

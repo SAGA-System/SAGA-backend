@@ -8,6 +8,8 @@ router.get('/:id', login, TeachersController.show)
 router.post('/', login, TeachersController.store)
 router.put('/:id', login, TeachersController.update)
 
+router.get('/teacherClasses/:id', login, TeachersController.teacherClasses)
+
 //update lessons column
 // router.post('/addLessons/:id', login, TeachersController.addLessons)
 router.put('/updateLessons/:id', login, TeachersController.updateLessons)

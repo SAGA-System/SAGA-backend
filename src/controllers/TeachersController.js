@@ -8,6 +8,8 @@ const initModels = require('../models/init-models')
 const db = require('../models/db')
 const models = initModels(db)
 
+const { Op } = require('sequelize')
+
 exports.index = async (req, res) => {
   try {
     logger.info(`TeachersController/index - list all teachers`)
@@ -464,3 +466,88 @@ exports.updateLessons = async (req, res) => {
 //     })
 //   }
 // }
+
+exports.teacherClasses = async (req, res) => {
+  try {
+    logger.info(`TeachersController/teacherClasses - list all teachers classes`)
+
+    const id = req.params.id
+    const { course, classTheme } = req.query
+
+    let options = {
+      attributes: ['gang', 'classTheme'],
+      include: [{
+        model: models.teachers,
+        as: 'idTeacher_teacher',
+        attributes: [],
+        where: {
+          id: id
+        },
+      }, {
+        model: models.class_,
+        as: 'idClass_class',
+        attributes: ['id', 'course', 'schoolYear', 'block', 'classNumber'],
+      }]
+    }
+
+    if (classTheme) {
+      options = {
+        ...options,
+        where: {
+          classTheme: {
+            [Op.like]: '%' + classTheme + '%'
+          }
+        },
+      }
+    }
+
+    if (course) {
+      options = {
+        ...options,
+        include: [
+          options.include[0],
+          {
+            ...options.include[1],
+            where: {
+              course: {
+                [Op.like]: '%' + course + '%'
+              }
+            }
+          }
+        ]
+      }
+    }
+
+    const teachersClasses = await models.teacherClasses.findAll(options)
+
+    if (!classTheme && !course && !teachersClasses.length) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhuma classe foi relacionada a esse professor'
+        }
+      })
+    }
+
+    const response = teachersClasses.map(item => {
+      return {
+        idClass: item.idClass_class.id,
+        gang: item.gang,
+        classTheme: item.classTheme,
+        course: item.idClass_class.course,
+        schoolYear: item.idClass_class.schoolYear,
+        block: item.idClass_class.block,
+        classNumber: item.idClass_class.classNumber,
+      }
+    })
+
+    return res.status(200).send(response)
+  } catch (err) {
+    logger.error(`Failed to list teachers classes - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}

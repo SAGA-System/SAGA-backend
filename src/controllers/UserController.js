@@ -459,54 +459,6 @@ exports.update = async (req, res) => {
 
       const updatedUser = await models.users.findOne({ where: { id: id } })
 
-      if (name !== findUser.dataValues.name) {
-        if ([2, 3, 4].includes(updatedUser.dataValues.idRole)) {
-          const Classes = await models.class_.findAll({ where: { idInstitution: updatedUser.idInstitution } })
-
-          const ids = Classes.filter((item) => item.dataValues.teachers.length > 0 && item.dataValues.teachers.map(item => {
-            return item.idUser === Number(id)
-          }).some(elem => elem === true))
-
-          try {
-            for (let i = 0; i < ids.length; i++) {
-              await api.put(`/class/updateTeacher/${ids[i].id}/${id}`, {
-                name: name
-              }, { headers: { authorization: token } })
-            }
-          } catch (err) {
-            logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
-
-            return res.status(500).send({
-              error: {
-                message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
-              }
-            })
-          }
-        } else if (updatedUser.dataValues.idRole === 6) {
-          const Classes = await models.class_.findAll({ where: { idInstitution: updatedUser.idInstitution } })
-
-          const ids = Classes.filter((item) => item.dataValues.students.length > 0 && item.dataValues.students.map(item => {
-            return item.idUser === Number(id)
-          }).some(elem => elem === true))
-
-          try {
-            for (let i = 0; i < ids.length; i++) {
-              await api.put(`/class/updateStudent/${ids[i].id}/${id}`, {
-                name: name,
-              }, { headers: { authorization: token } })
-            }
-          } catch (err) {
-            logger.error(`Failed to update user - Error: ${err?.response?.data?.error?.message || err.message}`)
-
-            return res.status(500).send({
-              error: {
-                message: err?.response?.data?.error?.message || 'Ocorreu um erro interno do servidor'
-              }
-            })
-          }
-        }
-      }
-
       delete updatedUser.dataValues.password
 
       return res.status(200).send(updatedUser)
@@ -737,10 +689,10 @@ exports.forgotPassword = async (req, res) => {
 
       mailer.sendMail({
         to: email,
-        from: 'SagaSolutions@gmail.com',
+        from: 'tccsaga@gmail.com',
         subject: 'Solicitação de Alteração de Senha',
         template: 'forgotPassword',
-        context: { token },
+        context: { username: findUser.name, url: `${req.headers.origin}/auth/redefinir-minha-senha?token=${token}` },
       }, (err) => {
         if (err) {
           logger.error(`Can't send email to reset password - Error: ${err.message}`)
