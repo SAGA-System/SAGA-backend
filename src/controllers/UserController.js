@@ -130,6 +130,9 @@ exports.store = async (req, res) => {
       district,
       complement,
       city,
+      genre,
+      birthDate,
+      CEP,
       //for teachers
       speciality,
       //for students
@@ -150,7 +153,7 @@ exports.store = async (req, res) => {
     // student
 
     if (!idInstitution || !name || !password || !cpf || !rg || !idRole || !email ||
-      !phone || !street || !number || !district || !city
+      !phone || !street || !number || !district || !city || !genre || birthDate || CEP
     ) {
       return res.status(400).send({
         error: {
@@ -273,6 +276,9 @@ exports.store = async (req, res) => {
             complement: complement,
             city: city,
             avatarKey: getAvatarProps('key'),
+            genre,
+            birthDate,
+            CEP
           })
 
           delete user.dataValues.password;
@@ -344,11 +350,11 @@ exports.update = async (req, res) => {
   try {
     logger.info(`UserController/update - update user by id`)
 
-    const token = req.headers.authorization
     const id = req.params.id
 
     let {
       name,
+      email,
       cpf,
       rg,
       idRole,
@@ -358,6 +364,9 @@ exports.update = async (req, res) => {
       district,
       complement,
       city,
+      genre,
+      birthDate,
+      CEP
     } = req.body
 
     const avatarFile = req.file
@@ -445,6 +454,7 @@ exports.update = async (req, res) => {
     if (findUser) {
       await models.users.update({
         name: name,
+        email: email,
         cpf: cpf,
         rg: rg,
         idRole: idRole,
@@ -452,14 +462,53 @@ exports.update = async (req, res) => {
         street: street,
         number: number,
         district: district,
-        complement: complement,
+        complement: !!complement && complement !== 'null' ? complement : null,
         city: city,
-        avatarKey: AvatarKey
+        avatarKey: AvatarKey,
+        genre: genre,
+        birthDate: birthDate,
+        CEP: CEP,
       }, { where: { id: id } })
 
-      const updatedUser = await models.users.findOne({ where: { id: id } })
+      let updatedUser = await models.users.findOne({ where: { id: id } })
 
-      delete updatedUser.dataValues.password
+      let roles = await models.roles.findOne({ where: { id: updatedUser.idRole } })
+      const permissions = await models.permissions.findAll({
+        include: {
+          model: models.permissionsrole,
+          as: 'permissionsroles',
+          where: {
+            idRole: updatedUser.idRole
+          }
+        }
+      })
+
+      roles = {
+        ...roles["dataValues"], permissions: permissions.map(item => {
+          delete item.dataValues.permissionsroles
+          return item.dataValues
+        })
+      }
+
+      updatedUser = { ...updatedUser["dataValues"], roles: roles }
+
+      if ([2, 3, 4].includes(updatedUser.idRole)) {
+        const teacherData = await models.teachers.findOne({ where: { idUser: updatedUser.id } })
+        updatedUser = { ...updatedUser, teacher: teacherData["dataValues"] }
+      } else if (updatedUser.idRole === 6) {
+        const studentData = await models.students.findOne({ where: { idUser: updatedUser.id } })
+        updatedUser = { ...updatedUser, student: studentData["dataValues"] }
+      }
+
+      const avatarUrl = AwsS3.getSignedUrl("getObject", {
+        Bucket: process.env.AWS_BUCKET_AVATAR,
+        Key: updatedUser.avatarKey,
+        Expires: 60 * 60 * 3
+      })
+
+      updatedUser = { ...updatedUser, avatarUrl: avatarUrl }
+
+      delete updatedUser.password;
 
       return res.status(200).send(updatedUser)
     } else {
@@ -599,10 +648,10 @@ exports.login = async (req, res) => {
 
     findUser = { ...findUser["dataValues"], roles: roles }
 
-    if([2,3,4].includes(findUser.idRole)) {
+    if ([2, 3, 4].includes(findUser.idRole)) {
       const teacherData = await models.teachers.findOne({ where: { idUser: findUser.id } })
       findUser = { ...findUser, teacher: teacherData["dataValues"] }
-    } else if(findUser.idRole === 6) {
+    } else if (findUser.idRole === 6) {
       const studentData = await models.students.findOne({ where: { idUser: findUser.id } })
       findUser = { ...findUser, student: studentData["dataValues"] }
     }

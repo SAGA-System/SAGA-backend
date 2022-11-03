@@ -9,6 +9,8 @@ router.post('/', login, ClassController.store)
 router.put('/:id', login, ClassController.update)
 router.delete('/:id', login, ClassController.destroy)
 
+router.get('/getClassForSchoolCall/:id', login, ClassController.getClassForSchoolCall)
+
 //update students column
 router.post('/addStudents/:idClass', login, ClassController.addStudents)
 // router.put('/updateStudent/:idClass/:idUser', login, ClassController.updateStudent)

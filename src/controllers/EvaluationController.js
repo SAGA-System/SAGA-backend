@@ -10,11 +10,13 @@ exports.index = async (req, res) => {
   try {
     logger.info(`evaluationController/index - list all evaluations`)
 
+    const { bimester } = req.query
+
     const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
-    const evaluations = await models.evaluations.findAll({
+    let options = {
       include: {
         model: models.schoolcalls,
         as: 'idSchoolCall_schoolcall',
@@ -26,11 +28,20 @@ exports.index = async (req, res) => {
           }
         }
       }
-    })
+    }
 
-    evaluations.map(item => {
-      delete item.dataValues.idSchoolCall_schoolcall
-    })
+    if (bimester) {
+      options = {
+        include: {
+          ...options.include,
+          where: {
+            bimester: bimester
+          }
+        }
+      }
+    }
+
+    const evaluations = await models.evaluations.findAll(options)
 
     if (evaluations.length === 0) {
       return res.status(404).send({
@@ -262,8 +273,8 @@ exports.assignGrades = async (req, res) => {
       }
 
       for (let i = 0; i < grades.length; i++) {
-        if(grades[i].idUser) {
-          const user = await models.users.findOne({ where: { id: grades[i].idUser}})
+        if (grades[i].idUser) {
+          const user = await models.users.findOne({ where: { id: grades[i].idUser } })
 
           grades[i] = {
             idUser: grades[i].idUser,

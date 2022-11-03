@@ -1,5 +1,7 @@
 sequelize-auto -h localhost -d dbnewnsa -u root -x Senha2022 -p 3406  --dialect mysql -o src/models
 
+sequelize-auto -h db-saga.cklcydxq28la.us-east-1.rds.amazonaws.com -d dbsaga -u admin -x Senha2022 -p 3406  --dialect mysql -o src/models
+
 --acessando a pasta program files/mysql/mysql server/bin
 cd ../../../../.. 
 cd "Program Files"

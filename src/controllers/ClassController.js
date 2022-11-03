@@ -120,34 +120,10 @@ exports.show = async (req, res) => {
     logger.info(`ClassController/show - list class by id`)
 
     const id = req.params.id
-    const { gang } = req.query
 
     let options = {
       include: defaultIncludes,
       where: { id: id }
-    }
-
-    if (gang) {
-      options = {
-        ...options,
-        include: [
-          {
-            ...defaultIncludes[0],
-            include: {
-              ...defaultIncludes[0].include,
-              include: {
-                ...defaultIncludes[0].include.include,
-                attributes: ['name', 'avatarKey'],
-              }
-            },
-            where: {
-              gang: gang
-            }
-          },
-          defaultIncludes[1],
-          defaultIncludes[2],
-        ]
-      }
     }
 
     let class_ = await models.class_.findOne(options)
@@ -158,30 +134,6 @@ exports.show = async (req, res) => {
           message: 'Nenhuma classe foi encontrada. Verifique as informações e tente novamente'
         }
       })
-    }
-
-    if (gang) {
-      class_ = {
-        ...class_['dataValues'],
-        studentclasses: class_.studentclasses.map((item) => {
-          const avatarUrl = awsS3.getSignedUrl("getObject", {
-            Bucket: process.env.AWS_BUCKET_AVATAR,
-            Key: item.idStudent_student.idUser_user.avatarKey,
-            Expires: 60 * 60 * 3
-          })
-
-          return {
-            ...item['dataValues'],
-            idStudent_student: {
-              ...item.idStudent_student['dataValues'],
-              idUser_user: {
-                ...item.idStudent_student.idUser_user['dataValues'],
-                avatarUrl: avatarUrl
-              }
-            }
-          }
-        })
-      }
     }
 
     return res.status(200).send(class_)
@@ -511,6 +463,93 @@ exports.destroy = async (req, res) => {
     })
   } catch (err) {
     logger.error(`Failed to delete class by id - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.getClassForSchoolCall = async (req, res) => {
+  try {
+    logger.info(`ClassController/getClassForSchoolCall - get class for school call`)
+
+    const id = req.params.id
+    const { gang } = req.query
+
+    let options = {
+      include: [
+        {
+          ...defaultIncludes[0],
+          include: {
+            ...defaultIncludes[0].include,
+            include: {
+              ...defaultIncludes[0].include.include,
+              attributes: ['name', 'avatarKey'],
+            }
+          },
+        },
+        defaultIncludes[1],
+        defaultIncludes[2],
+      ],
+      where: { id: id }
+    }
+
+    if (gang) {
+      options = {
+        ...options,
+        include: [
+          {
+            ...options.include[0],
+            where: {
+              gang: gang
+            }
+          },
+          defaultIncludes[1],
+          defaultIncludes[2],
+        ]
+      }
+    }
+
+    let class_ = await models.class_.findOne(options)
+
+    if (!class_) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhuma classe foi encontrada. Verifique as informações e tente novamente'
+        }
+      })
+    }
+
+    class_ = {
+      ...class_['dataValues'],
+      studentclasses: class_.studentclasses.map((item) => {
+        console.log(item['dataValues'].idStudent_student['dataValues'])
+
+        const avatarUrl = awsS3.getSignedUrl("getObject", {
+          Bucket: process.env.AWS_BUCKET_AVATAR,
+          Key: item['dataValues'].idStudent_student['dataValues'].idUser_user.avatarKey,
+          Expires: 60 * 60 * 3
+        })
+
+        return {
+          ...item['dataValues'],
+          idStudent_student: {
+            ...item.idStudent_student['dataValues'],
+            idUser_user: {
+              ...item.idStudent_student.idUser_user['dataValues'],
+              avatarUrl: avatarUrl
+            }
+          }
+        }
+      })
+    }
+
+    return res.status(200).send(class_)
+  } catch (err) {
+    logger.error(`Failed to list class by id - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

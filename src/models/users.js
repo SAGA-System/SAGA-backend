@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function (sequelize, DataTypes) {
+module.exports = function(sequelize, DataTypes) {
   return sequelize.define('users', {
     id: {
       autoIncrement: true,
@@ -74,6 +74,18 @@ module.exports = function (sequelize, DataTypes) {
       }
     },
     avatarKey: {
+      type: DataTypes.STRING(255),
+      allowNull: false
+    },
+    genre: {
+      type: DataTypes.STRING(255),
+      allowNull: false
+    },
+    birthDate: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    CEP: {
       type: DataTypes.STRING(255),
       allowNull: false
     }
