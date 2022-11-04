@@ -10,7 +10,7 @@
   "author": "Carlos Eduardo Zulian",
   "license": "ISC",
   "engines": {
-    "node": "16.15.1"
+    "node": "18.12.1"
   },
   "dependencies": {
     "aws-sdk": "^2.1218.0",
