@@ -526,7 +526,6 @@ exports.getClassForSchoolCall = async (req, res) => {
     class_ = {
       ...class_['dataValues'],
       studentclasses: class_.studentclasses.map((item) => {
-        console.log(item['dataValues'].idStudent_student['dataValues'])
 
         const avatarUrl = awsS3.getSignedUrl("getObject", {
           Bucket: process.env.AWS_BUCKET_AVATAR,
@@ -1581,53 +1580,43 @@ exports.defineGangs = async (req, res) => {
 
     const idClass = req.params.idClass
 
-    const findClass = await models.class_.findOne({ where: { id: idClass } })
+    const findClass = await models.class_.findOne({
+      include: defaultIncludes,
+      where: { id: idClass }
+    })
 
-    if (findClass) {
-      findClass.students.sort((a, b) => {
-        let x = convertToSlug(a.name).toLowerCase()
-        let y = convertToSlug(b.name).toLowerCase()
-
-        return x === y ? 0 : x > y ? 1 : -1
-      })
-
-
-      const updatedStudents = findClass.students.map((item, index) => {
-        item.gang = (index + 1) <= Math.floor(findClass.students.length / 2) ? "A" : "B"
-        return item
-      })
-
-      for (u of updatedStudents) {
-        const student = await models.studentclasses.findOne({
-          where: { idClass: idClass },
-          include: {
-            model: models.students,
-            as: 'idStudent_student',
-            where: {
-              idUser: u.idUser
-            }
-          }
-        })
-
-        if (student && student.idClass === Number(idClass) && (student.gang === '' || student.gang !== u.gang)) {
-          await models.studentclasses.update({
-            gang: u.gang
-          }, { where: { id: student.id, idClass: idClass } })
-        }
-      }
-
-      await models.class_.update({
-        students: updatedStudents,
-      }, { where: { id: idClass } })
-
-      return res.status(200).send(await models.class_.findOne({ where: { id: idClass } }))
-    } else {
+    if (!findClass) {
       return res.status(404).send({
         error: {
           message: 'Nenhuma classe foi encontrada. Não foi possível definir as turmas',
         }
       })
     }
+
+    findClass['dataValues'].studentclasses.sort((a, b) => {
+      let x = convertToSlug(a.idStudent_student.idUser_user.name).toLowerCase()
+      let y = convertToSlug(b.idStudent_student.idUser_user.name).toLowerCase()
+
+      return x === y ? 0 : x > y ? 1 : -1
+    })
+
+    const updatedStudents = findClass['dataValues'].studentclasses.map((item, index) => {
+      item.gang = (index + 1) <= Math.floor(findClass['dataValues'].studentclasses.length / 2) ? "A" : "B"
+      return item
+    })
+
+    for (u of updatedStudents) {
+      if (u.idClass === Number(idClass)) {
+        await models.studentclasses.update({
+          gang: u.gang
+        }, { where: { id: u.id, idClass: idClass } })
+      }
+    }
+
+    return res.status(200).send(await models.class_.findOne({
+      include: defaultIncludes,
+      where: { id: idClass }
+    }))
   } catch (err) {
     logger.error(`Failed to define gangs in class - Error: ${err.message}`)
 
@@ -1715,6 +1704,7 @@ exports.updateFrequency = async (req, res) => {
         }
       })
     }
+
     const classThemeFrequency = students[0].frequencies.filter(item =>
       convertToSlug(item.classTheme) === convertToSlug(frequency.classTheme)
     )[0]
@@ -1727,8 +1717,6 @@ exports.updateFrequency = async (req, res) => {
       })
     }
 
-    classThemeFrequency.classGiven += frequency.classGiven
-
     // mapping class students
     for (s of students) {
       const updatedFrequency = s.frequencies.map(item => {
@@ -1739,14 +1727,14 @@ exports.updateFrequency = async (req, res) => {
             // checking if the student is absent or not to update their frequency information
             return elem.idStudentClasses === s.id && {
               ...item['dataValues'],
-              classGiven: classThemeFrequency.classGiven,
+              classGiven: item.classGiven + frequency.classGiven,
               absence: item.absence + elem.absence,
               totalClasses: item.totalClasses
             }
             // picking up only the missing students and returning other information if the student has not been absent
           }).filter(filterItem => filterItem.absence && filterItem.absence !== item.absence)[0] ?? {
             ...item['dataValues'],
-            classGiven: classThemeFrequency.classGiven,
+            classGiven: item.classGiven + frequency.classGiven,
           }
         ) : item['dataValues']
       })
@@ -1829,7 +1817,6 @@ exports.updateFrequency = async (req, res) => {
 
     return res.status(200).send({ message: "Chamada realizada!" })
   } catch (err) {
-    console.log(err)
     logger.error(`Failed to update frequency - Error: ${err.message}`)
 
     return res.status(500).send({
@@ -1846,7 +1833,10 @@ exports.generateBulletins = async (req, res) => {
 
     const idClass = req.params.idClass
 
-    const findClass = await models.class_.findOne({ where: { id: idClass } })
+    const findClass = await models.class_.findOne({
+      include: defaultIncludes,
+      where: { id: idClass }
+    })
 
     if (!findClass) {
       return res.status(404).send({
@@ -1856,7 +1846,7 @@ exports.generateBulletins = async (req, res) => {
       })
     }
 
-    if (findClass.students.length === 0) {
+    if (findClass['dataValues'].studentclasses.length === 0) {
       return res.status(404).send({
         error: {
           message: 'Não existe nenhum aluno na classe. Não foi possível gerar os boletins',
@@ -1867,20 +1857,20 @@ exports.generateBulletins = async (req, res) => {
     let classThemeTeachers = []
 
     for (let { name } of findClass.classTheme) {
-      const teacherExists = findClass.teachers.filter(({ classTheme }) => convertToSlug(name) === convertToSlug(classTheme))
+      const teacherExists = findClass['dataValues'].teacherClasses.filter(({ classTheme }) => convertToSlug(name) === convertToSlug(classTheme))
       if (teacherExists.length !== 0) {
         if (teacherExists.length > 1) {
           for (let teacher of teacherExists) {
             classThemeTeachers.push({
               classTheme: name,
-              teacherId: teacher.id,
+              teacherId: teacher.idTeacher,
               gang: teacher.gang
             })
           }
         } else {
           classThemeTeachers.push({
             classTheme: name,
-            teacherId: teacherExists[0].id,
+            teacherId: teacherExists[0].idTeacher,
             gang: ''
           })
         }
@@ -1910,9 +1900,7 @@ exports.generateBulletins = async (req, res) => {
       })
     }
 
-    const studentClasses = await models.studentclasses.findAll({ where: { idClass: idClass } })
-
-    for (let student of studentClasses) {
+    for (let student of findClass['dataValues'].studentclasses) {
       const bulletin = await models.bulletin.findAll({ where: { idStudentClasses: student.id } })
       if (bulletin.length !== 0) {
         return res.status(400).send({
@@ -1923,22 +1911,24 @@ exports.generateBulletins = async (req, res) => {
       }
     }
 
-    for (let student of studentClasses) {
+    for (let student of findClass['dataValues'].studentclasses) {
       for (let classTheme of classThemeTeachers) {
-        const totalClasses = student.frequency.filter(({ name }) =>
-          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        const studentFrequency = await models.frequency.findAll({ where: { idStudentClasses: student.id } })
+
+        const totalClasses = studentFrequency.filter((item) =>
+          convertToSlug(item.classTheme) === convertToSlug(classTheme.classTheme)
         )[0].totalClasses || 0
 
-        const classesGiven = student.frequency.filter(({ name }) =>
-          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        const classesGiven = studentFrequency.filter((item) =>
+          convertToSlug(item.classTheme) === convertToSlug(classTheme.classTheme)
         )[0].classesGiven || 0
 
-        const absence = student.frequency.filter(({ name }) =>
-          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        const absence = studentFrequency.filter((item) =>
+          convertToSlug(item.classTheme) === convertToSlug(classTheme.classTheme)
         )[0].absence || 0
 
-        const frequency = student.frequency.filter(({ name }) =>
-          convertToSlug(name) === convertToSlug(classTheme.classTheme)
+        const frequency = studentFrequency.filter((item) =>
+          convertToSlug(item.classTheme) === convertToSlug(classTheme.classTheme)
         )[0].frequency || 0
 
         if (!classTheme.gang) {

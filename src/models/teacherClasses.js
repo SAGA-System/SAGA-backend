@@ -45,17 +45,17 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "idTeacher",
-        using: "BTREE",
-        fields: [
-          { name: "idTeacher" },
-        ]
-      },
-      {
-        name: "idClass",
+        name: "teacherClasses_ibfk_2",
         using: "BTREE",
         fields: [
           { name: "idClass" },
+        ]
+      },
+      {
+        name: "teacherClasses_ibfk_1",
+        using: "BTREE",
+        fields: [
+          { name: "idTeacher" },
         ]
       },
     ]

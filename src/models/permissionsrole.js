@@ -37,14 +37,14 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "idPermission",
+        name: "permissionsrole_ibfk_1",
         using: "BTREE",
         fields: [
           { name: "idPermission" },
         ]
       },
       {
-        name: "idRole",
+        name: "permissionsrole_ibfk_2",
         using: "BTREE",
         fields: [
           { name: "idRole" },

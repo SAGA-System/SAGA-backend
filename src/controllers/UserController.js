@@ -582,19 +582,24 @@ exports.destroy = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     //sync database table columns with models
-    //await models.bulletin.sync({alter: true})
-    //await models.class_.sync({alter: true})
-    //await models.evaluations.sync({alter: true})
-    //await models.files.sync({alter: true})
-    //await models.institution.sync({alter: true})
-    //await models.permissions.sync({alter: true})
-    //await models.schoolcalls.sync({alter: true})
-    //await models.studentclasses.sync({alter: true})
-    //await models.students.sync({alter: true})
-    //await models.teachers.sync({alter: true})
-    //await models.userpermissions.sync({alter: true})
-    //await models.users.sync({alter: true})
-
+    // await models.bulletin.sync({alter: true})
+    // await models.frequency.sync({alter: true})
+    // await models.studentclasses.sync({alter: true})
+    // await models.students.sync({alter: true})
+    // await models.teacherClasses.sync({alter: true})
+    // await models.teacherLessons.sync({alter: true})
+    // await models.teachers.sync({alter: true})
+    // await models.permissionsrole.sync({alter: true})
+    // await models.permissions.sync({alter: true})
+    // await models.roles.sync({alter: true})
+    // await models.userpermissions.sync({alter: true})
+    // await models.evaluations.sync({alter: true})
+    // await models.schoolcalls.sync({alter: true})
+    // await models.classLessons.sync({alter: true})
+    // await models.class_.sync({alter: true})
+    // await models.users.sync({alter: true})
+    // await models.institution.sync({alter: true})
+    
     logger.info(`UserController/login - login`)
 
     const {

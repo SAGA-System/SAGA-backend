@@ -111,6 +111,14 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
+        name: "cpf",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "cpf" },
+        ]
+      },
+      {
         name: "Users_fk0",
         using: "BTREE",
         fields: [

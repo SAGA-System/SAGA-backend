@@ -10,7 +10,7 @@ exports.index = async (req, res) => {
   try {
     logger.info(`evaluationController/index - list all evaluations`)
 
-    const { bimester } = req.query
+    const { bimester, idTeacher } = req.query
 
     const tokenDecoded = jwt.decode(req.headers.authorization.slice(7))
 
@@ -35,7 +35,20 @@ exports.index = async (req, res) => {
         include: {
           ...options.include,
           where: {
+            ...options.include.where,
             bimester: bimester
+          }
+        }
+      }
+    }
+
+    if (idTeacher) {
+      options = {
+        include: {
+          ...options.include,
+          where: {
+            ...options.include.where,
+            idTeacher: idTeacher
           }
         }
       }
