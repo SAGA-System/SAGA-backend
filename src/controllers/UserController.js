@@ -153,15 +153,15 @@ exports.store = async (req, res) => {
     // student
 
     if (!idInstitution || !name || !password || !cpf || !rg || !idRole || !email ||
-      !phone || !street || !number || !district || !city || !genre || birthDate || CEP
+      !phone || !street || !number || !district || !city || !genre || !birthDate || !CEP
     ) {
       return res.status(400).send({
         error: {
           message: 'Faltam dados para o cadastro. Verifique as informações enviadas e tente novamente'
         }
       })
-    } else if (idRole && ([2, 3, 4].includes(idRole) && !speciality ||
-      idRole === 6 && (!idClass || !ra || !schoolYear || !situation))
+    } else if (idRole && ([2, 3, 4].includes(Number(idRole)) && !speciality ||
+      Number(idRole) === 6 && (!idClass || !ra || !schoolYear || !situation))
     ) {
       return res.status(400).send({
         error: {
@@ -174,6 +174,7 @@ exports.store = async (req, res) => {
     rg = normalizer.removeMask(rg)
     cpf = normalizer.removeMask(cpf)
     phone = normalizer.removeMask(phone)
+    CEP = normalizer.removeMask(CEP)
 
     if (ra) {
       ra = normalizer.removeMask(ra)
@@ -535,39 +536,36 @@ exports.destroy = async (req, res) => {
 
     const id = req.params.id
 
-    const token = req.headers.authorization
-
     const findUser = await models.users.findOne({ where: { id: id } })
 
-    // TODO: revisar esse fluxo
-    if (findUser) {
-      if (([2, 3, 4].includes(findUser.roleId) || findUser.roleId === 6)) {
-        const roleId = findUser.roleId
-        const Classes = await models.class_.findAll()
-
-        const ids = Classes.filter(({ teachers, students }) => roleId === 6 ? students.length > 0 && students.map(item => {
-          return item.id === Number(id)
-        }).some(elem => elem === true) : teachers.length > 0 && teachers.map(item => {
-          return item.id === Number(id)
-        }).some(elem => elem === true))
-
-        for (let i = 0; i < ids.length; i++) {
-          await api.delete(`/class/delete${roleId === 6 ? 'Student' : 'Teacher'}/${ids[i].id}/${id}`, { headers: { authorization: token } });
-        }
-      }
-
-      await models.users.destroy({ where: { id: id } })
-
-      return res.status(200).send({
-        message: 'Usuário deletado com sucesso'
-      })
-    } else {
+    if (!findUser) {
       return res.status(404).send({
         error: {
           message: 'Usuário não encontrado ou já deletado'
         }
       })
     }
+
+    const awsDeleteParams = {
+      Bucket: process.env.AWS_BUCKET_AVATAR,
+      Key: findUser.avatarKey,
+    }
+
+    await new Promise((resolve, reject) => {
+      AwsS3.deleteObject(
+        awsDeleteParams,
+        function (error, data) {
+          if (error) return reject(error);
+          resolve(data);
+        }
+      );
+    });
+
+    await models.users.destroy({ where: { id: id } })
+
+    return res.status(200).send({
+      message: 'Usuário deletado com sucesso'
+    })
   } catch (err) {
     logger.error(`Failed to delete user by id - Error: ${err.message}`)
 
@@ -599,7 +597,7 @@ exports.login = async (req, res) => {
     // await models.class_.sync({alter: true})
     // await models.users.sync({alter: true})
     // await models.institution.sync({alter: true})
-    
+
     logger.info(`UserController/login - login`)
 
     const {
