@@ -300,9 +300,6 @@ exports.store = async (req, res) => {
                 schoolYear: schoolYear,
                 situation: situation,
               }, { headers: { authorization: token } });
-              await api.post(`/class/addStudents/${idClass}`, {
-                idUser: user.id,
-              }, { headers: { authorization: token } });
             }
           } catch (err) {
             await models.users.destroy({ where: { id: user.id } })
