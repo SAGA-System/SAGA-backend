@@ -15,4 +15,6 @@ router.get('/teacherClasses/:id', login, TeachersController.teacherClasses)
 router.put('/updateLessons/:id', login, TeachersController.updateLessons)
 // router.delete('/deleteLessons/:id', login, TeachersController.deleteLessons)
 
+router.get('/listTeacherLessons/:id', login, TeachersController.listTeacherLessons)
+
 module.exports = router

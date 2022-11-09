@@ -377,7 +377,7 @@ exports.updateLessons = async (req, res) => {
           // formatting data
           lessonDays[day][i] = {
             ...lessonDays[day][i],
-            period: lessonDays[day][i].period.toLowerCase(),
+            period: lessonDays[day][i].period,
             gang: lessonDays[day][i].gang && lessonDays[day][i].gang.toUpperCase(),
             classBlock: lessonDays[day][i].classBlock.toUpperCase()
           }
@@ -543,6 +543,49 @@ exports.teacherClasses = async (req, res) => {
     return res.status(200).send(response)
   } catch (err) {
     logger.error(`Failed to list teachers classes - Error: ${err.message}`)
+
+    return res.status(500).send({
+      error: {
+        message: 'Ocorreu um erro interno do servidor'
+      }
+    })
+  }
+}
+
+exports.listTeacherLessons = async (req, res) => {
+  try {
+    logger.info(`TeachersController/listTeacherLessons - list teachers lessons`)
+
+    const id = req.params.id
+
+    const { day } = req.query
+
+    let options = {
+      where: {
+        idTeacher: id
+      }
+    }
+
+    if (day) {
+      options = {
+        ...options,
+        attributes: ['id', 'idTeacher', day.toLowerCase(), 'createdAt', 'updatedAt']
+      }
+    }
+
+    const teacherLessons = await models.teacherLessons.findOne(options)
+
+    if (!teacherLessons) {
+      return res.status(404).send({
+        error: {
+          message: 'Nenhuma lista de aulas foi relacionada a esse professor'
+        }
+      })
+    }
+
+    return res.status(200).send(teacherLessons)
+  } catch (err) {
+    logger.error(`Failed to list lessons - Error: ${err.message}`)
 
     return res.status(500).send({
       error: {

@@ -7,6 +7,7 @@ var _frequency = require("./frequency");
 var _institution = require("./institution");
 var _permissions = require("./permissions");
 var _permissionsrole = require("./permissionsrole");
+var _ptds = require("./ptds");
 var _roles = require("./roles");
 var _schoolcalls = require("./schoolcalls");
 var _sequelizemeta = require("./sequelizemeta");
@@ -26,6 +27,7 @@ function initModels(sequelize) {
   var institution = _institution(sequelize, DataTypes);
   var permissions = _permissions(sequelize, DataTypes);
   var permissionsrole = _permissionsrole(sequelize, DataTypes);
+  var ptds = _ptds(sequelize, DataTypes);
   var roles = _roles(sequelize, DataTypes);
   var schoolcalls = _schoolcalls(sequelize, DataTypes);
   var sequelizemeta = _sequelizemeta(sequelize, DataTypes);
@@ -38,6 +40,8 @@ function initModels(sequelize) {
 
   classLessons.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
   class_.hasMany(classLessons, { as: "classLessons", foreignKey: "idClass"});
+  ptds.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
+  class_.hasMany(ptds, { as: "ptds", foreignKey: "idClass"});
   schoolcalls.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
   class_.hasMany(schoolcalls, { as: "schoolcalls", foreignKey: "idClass"});
   studentclasses.belongsTo(class_, { as: "idClass_class", foreignKey: "idClass"});
@@ -66,6 +70,10 @@ function initModels(sequelize) {
   students.hasMany(studentclasses, { as: "studentclasses", foreignKey: "idStudent"});
   bulletin.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
   teachers.hasMany(bulletin, { as: "bulletins", foreignKey: "idTeacher"});
+  ptds.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
+  teachers.hasMany(ptds, { as: "ptds", foreignKey: "idTeacher"});
+  schoolcalls.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
+  teachers.hasMany(schoolcalls, { as: "schoolcalls", foreignKey: "idTeacher"});
   teacherClasses.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
   teachers.hasMany(teacherClasses, { as: "teacherClasses", foreignKey: "idTeacher"});
   teacherLessons.belongsTo(teachers, { as: "idTeacher_teacher", foreignKey: "idTeacher"});
@@ -84,6 +92,7 @@ function initModels(sequelize) {
     institution,
     permissions,
     permissionsrole,
+    ptds,
     roles,
     schoolcalls,
     sequelizemeta,

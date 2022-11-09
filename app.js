@@ -1,6 +1,5 @@
 const express = require('express');
 const app = express();
-const cors = require('cors');
 require('dotenv').config()
 
 // routes
@@ -15,6 +14,7 @@ const evaluationRoutes = require('./src/routes/evaluation')
 const bulletinRoutes = require('./src/routes/bulletin')
 const schoolCallRoutes = require('./src/routes/schoolCall')
 const frequencyRoutes = require('./src/routes/frequency')
+const PTDRoutes = require('./src/routes/ptds')
 
 app.use(function (req, res, next) {
   if (process.env.POSSIBLE_ROUTES && process.env.POSSIBLE_ROUTES.includes(req.headers.origin)) {
@@ -53,6 +53,7 @@ app.use('/api/evaluation', evaluationRoutes)
 app.use('/api/bulletin', bulletinRoutes)
 app.use('/api/schoolcalls', schoolCallRoutes)
 app.use('/api/frequency', frequencyRoutes)
+app.use('/api/ptd', PTDRoutes)
 
 app.use((req, res, next) => {
   const err = new Error('Rota não encontrada')

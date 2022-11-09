@@ -212,8 +212,8 @@ exports.store = async (req, res) => {
 
     const newClass = await models.class_.create({
       idInstitution: findInstitution.id,
-      period: period,
-      course: course,
+      period: courseData[0].period,
+      course: courseData[0].name,
       schoolYear: schoolYear,
       block: block,
       classNumber: classNumber,
@@ -515,6 +515,26 @@ exports.getClassForSchoolCall = async (req, res) => {
 
     let class_ = await models.class_.findOne(options)
 
+    if(gang && !class_) {
+      class_ = await models.class_.findOne({
+        include: [
+          {
+            ...defaultIncludes[0],
+            include: {
+              ...defaultIncludes[0].include,
+              include: {
+                ...defaultIncludes[0].include.include,
+                attributes: ['name', 'avatarKey'],
+              }
+            },
+          },
+          defaultIncludes[1],
+          defaultIncludes[2],
+        ],
+        where: { id: id }
+      })
+    }
+
     if (!class_) {
       return res.status(404).send({
         error: {
@@ -545,6 +565,13 @@ exports.getClassForSchoolCall = async (req, res) => {
         }
       })
     }
+
+    class_.studentclasses.sort((a, b) => {
+      let x = convertToSlug(a.idStudent_student.idUser_user.name).toLowerCase()
+      let y = convertToSlug(b.idStudent_student.idUser_user.name).toLowerCase()
+
+      return x === y ? 0 : x > y ? 1 : -1
+    })
 
     return res.status(200).send(class_)
   } catch (err) {
