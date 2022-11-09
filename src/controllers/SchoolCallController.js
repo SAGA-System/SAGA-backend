@@ -17,7 +17,7 @@ exports.index = async (req, res) => {
     const findUser = await models.users.findOne({ where: { id: tokenDecoded.id } })
 
     let options = {
-      attributes: ['id', 'idTeacher', 'idClass', 'classTheme', 'date', 'absents', 'createdAt', 'updatedAt'],
+      attributes: ['id', 'idTeacher', 'idClass', 'classTheme', 'date', 'absents' , 'description', 'bimester', 'gang', 'createdAt', 'updatedAt'],
       include: {
         model: models.class_,
         as: 'idClass_class',
