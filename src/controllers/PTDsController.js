@@ -188,11 +188,14 @@ exports.store = async (req, res) => {
           }),
           responseType: "stream"
         }).then(response => {
-          response.data.pipe(fs.createWriteStream(path.resolve(__dirname, "../", "resources", "ptdConverted", "result.pdf")))
+          response.data.pipe(fs.createWriteStream("result.pdf"))
+          console.log('criei')
 
-          finalFile.buffer = fs.readFileSync(path.resolve(__dirname, "../", "resources", "ptdConverted", "result.pdf"))
+          setTimeout(() => finalFile.buffer = fs.readFileSync("result.pdf"), 10)
+          console.log('li')
 
-          fs.rmSync(path.resolve(__dirname, "../", "resources", "ptdConverted", "result.pdf"))
+          setTimeout(() => fs.rmSync("result.pdf"), 10)
+          console.log('apaguei')
         }).catch(async err => {
           error = true
 
