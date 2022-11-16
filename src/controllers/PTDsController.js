@@ -191,10 +191,10 @@ exports.store = async (req, res) => {
           response.data.pipe(fs.createWriteStream("result.pdf"))
           console.log('criei')
 
-          setTimeout(() => finalFile.buffer = fs.readFileSync("result.pdf"), 10)
+          setTimeout(() => finalFile.buffer = fs.readFileSync("result.pdf"), 50)
           console.log('li')
 
-          setTimeout(() => fs.rmSync("result.pdf"), 10)
+          setTimeout(() => fs.rmSync("result.pdf"), 50)
           console.log('apaguei')
         }).catch(async err => {
           error = true
