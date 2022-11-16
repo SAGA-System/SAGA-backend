@@ -196,8 +196,6 @@ exports.store = async (req, res) => {
           finalFile.buffer = fs.readFileSync("result.pdf")
           logger.info('Arquivo lido')
 
-          console.log(finalFile.buffer)
-
           // for await 50ms
           await new Promise(resolve => setTimeout(resolve, 50));
           fs.rmSync("result.pdf")
