@@ -187,15 +187,21 @@ exports.store = async (req, res) => {
             'Authorization': `Bearer ${process.env.PSPDFKIT_KEY}`
           }),
           responseType: "stream"
-        }).then(response => {
+        }).then(async response => {
           response.data.pipe(fs.createWriteStream("result.pdf"))
-          console.log('criei')
+          logger.info('Arquivo criado')
 
-          setTimeout(() => finalFile.buffer = fs.readFileSync("result.pdf"), 50)
-          console.log('li')
+          // for await 50ms
+          await new Promise(resolve => setTimeout(resolve, 50));
+          finalFile.buffer = fs.readFileSync("result.pdf")
+          logger.info('Arquivo lido')
 
-          setTimeout(() => fs.rmSync("result.pdf"), 50)
-          console.log('apaguei')
+          console.log(finalFile.buffer)
+
+          // for await 50ms
+          await new Promise(resolve => setTimeout(resolve, 50));
+          fs.rmSync("result.pdf")
+          logger.info('Arquivo apagado')
         }).catch(async err => {
           error = true
 
